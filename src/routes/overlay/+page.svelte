@@ -17,6 +17,7 @@
 		if (s.state === 'transcribing' || s.state === 'injecting') return 'transcribing' as const;
 		if (s.state === 'error') return 'error' as const;
 		if (s.state === 'cancelled') return 'cancelled' as const;
+		if (s.state === 'clipboard-only') return 'clipboard-only' as const;
 		return null;
 	});
 

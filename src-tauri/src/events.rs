@@ -20,6 +20,13 @@ pub enum TranscriptionState {
     /// User aborted a locked/in-progress recording via Escape. The audio is
     /// discarded. The overlay shows this briefly then auto-transitions to Idle.
     Cancelled,
+    /// Wayland compositor denied programmatic input injection so Quill copied
+    /// the text to the clipboard instead. The UI surfaces a "press Ctrl+V to
+    /// paste" toast; auto-transitions to Idle after a short window.
+    #[serde(rename = "clipboard-only")]
+    ClipboardOnly {
+        text_len: usize,
+    },
     Error {
         message: String,
     },

@@ -1,5 +1,12 @@
 <script lang="ts">
-	type State = 'idle' | 'recording' | 'transcribing' | 'injecting' | 'error' | 'cancelled';
+	type State =
+		| 'idle'
+		| 'recording'
+		| 'transcribing'
+		| 'injecting'
+		| 'error'
+		| 'cancelled'
+		| 'clipboard-only';
 
 	interface Props {
 		state: State;
@@ -12,7 +19,9 @@
 		transcribing: { dot: 'oklch(0.78 0.14 75)', pulse: false, spin: true },
 		injecting: { dot: 'oklch(0.72 0.15 145)', pulse: false, spin: false },
 		error: { dot: 'oklch(0.72 0.18 25)', pulse: false, spin: false },
-		cancelled: { dot: 'var(--text-mute)', pulse: false, spin: false }
+		cancelled: { dot: 'var(--text-mute)', pulse: false, spin: false },
+		// ClipboardOnly reads as a success outcome — friendly blue, no pulse.
+		'clipboard-only': { dot: 'oklch(0.68 0.16 245)', pulse: false, spin: false }
 	};
 </script>
 

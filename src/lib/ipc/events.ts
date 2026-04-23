@@ -17,4 +17,8 @@ export type TranscriptionState =
 	/** User aborted a locked/in-progress recording via Escape. Shown briefly,
 	 *  then auto-transitions to Idle. */
 	| { state: 'cancelled' }
+	/** Wayland compositor denied programmatic input injection; the text was
+	 *  copied to the clipboard and the user must press Ctrl+V to paste.
+	 *  Shown briefly, then auto-transitions to Idle. */
+	| { state: 'clipboard-only'; text_len: number }
 	| { state: 'error'; message: string };

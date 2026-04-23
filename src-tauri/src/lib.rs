@@ -4,6 +4,7 @@ pub mod circuit_breaker;
 pub mod commands;
 pub mod config;
 pub mod cost_alert;
+pub mod display_server;
 pub mod engines;
 pub mod error;
 pub mod events;
@@ -88,6 +89,7 @@ pub fn run() {
             commands::history::reinject_history_entry,
             commands::history::retry_history_entry,
             commands::hardware::detect_hardware,
+            commands::platform::get_display_server,
             commands::models::list_known_models,
             commands::models::download_model,
             commands::models::delete_model,

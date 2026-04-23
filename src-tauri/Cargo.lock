@@ -135,6 +135,21 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7c02d123df017efcdfbd739ef81735b36c5ba83ec3c59c80a9d7ecc718f92e50"
 
 [[package]]
+name = "ashpd"
+version = "0.13.10"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "3118453e020b8e3e0da25ef9a1d0d51d668874358af11aded9d91a8b9c25f323"
+dependencies = [
+ "enumflags2",
+ "futures-util",
+ "getrandom 0.4.2",
+ "serde",
+ "serde_repr",
+ "tokio",
+ "zbus 5.14.0",
+]
+
+[[package]]
 name = "assert-json-diff"
 version = "2.0.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4112,6 +4127,7 @@ name = "quill"
 version = "0.1.0"
 dependencies = [
  "arboard",
+ "ashpd",
  "async-trait",
  "chrono",
  "cpal",
@@ -4124,6 +4140,7 @@ dependencies = [
  "log",
  "parking_lot",
  "rdev",
+ "reis",
  "reqwest 0.12.28",
  "rodio",
  "rusqlite",
@@ -4144,6 +4161,7 @@ dependencies = [
  "uuid",
  "windows-sys 0.59.0",
  "wiremock",
+ "x11rb",
 ]
 
 [[package]]
@@ -4462,6 +4480,19 @@ name = "regex-syntax"
 version = "0.8.10"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "dc897dd8d9e8bd1ed8cdad82b5966c3e0ecae09fb1907d58efaa013543185d0a"
+
+[[package]]
+name = "reis"
+version = "0.6.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "2aee09758db35e73eb1398c6ef321973ce7f4aad86573ba08c1c8ef98d350b46"
+dependencies = [
+ "enumflags2",
+ "futures",
+ "log",
+ "rustix",
+ "tokio",
+]
 
 [[package]]
 name = "rend"
@@ -5970,6 +6001,7 @@ dependencies = [
  "signal-hook-registry",
  "socket2",
  "tokio-macros",
+ "tracing",
  "windows-sys 0.61.2",
 ]
 
@@ -7640,6 +7672,7 @@ dependencies = [
  "rustix",
  "serde",
  "serde_repr",
+ "tokio",
  "tracing",
  "uds_windows",
  "uuid",

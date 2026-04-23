@@ -1,7 +1,7 @@
 [package]
 name = "quill"
 version = "0.1.0"
-description = "Voice-to-text dictation app for Windows and macOS."
+description = "Voice-to-text dictation app for Windows, Linux, and macOS."
 authors = ["Lautaro Segura"]
 license = "MIT OR Apache-2.0"
 repository = ""
@@ -67,6 +67,17 @@ keyring = { version = "3.0", features = ["apple-native"] }
 
 [target.'cfg(target_os = "linux")'.dependencies]
 keyring = { version = "3.0", features = ["linux-native-sync-persistent", "crypto-rust"] }
+# XDG Desktop Portals (GlobalShortcuts + RemoteDesktop) for Wayland.
+# On X11 we still use rdev/enigo; these crates are compiled but inert.
+# Per-portal features are required: `tokio` alone won't expose the
+# `global_shortcuts` / `remote_desktop` modules.
+ashpd = { version = "0.13", default-features = false, features = ["tokio", "global_shortcuts", "remote_desktop"] }
+# libei bindings — used via ashpd::RemoteDesktop::connect_to_eis() to emit
+# Ctrl+V on Wayland once the user has granted RemoteDesktop consent.
+reis = { version = "0.6", features = ["tokio"] }
+# X11 client — reads _NET_ACTIVE_WINDOW / _NET_WM_NAME so Historial can show
+# "dictated into: <app>" on X11 sessions. No-op on Wayland (returns None).
+x11rb = "0.13"
 
 [dev-dependencies]
 tempfile = "3.10"

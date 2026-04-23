@@ -49,25 +49,29 @@ jobs:
             libxdo-dev \
             libxtst-dev \
             libxi-dev \
-            libx11-dev
+            libx11-dev \
+            libxcb1-dev \
+            libwayland-dev \
+            libxkbcommon-dev
 
       # CI doesn't need real whisper-cli binaries to run unit/integration
       # tests — Tauri's build.rs just validates that `externalBin` and
       # `resources` paths exist (and that globs match at least one file).
-      # We create empty placeholders so those checks pass:
-      #   * one sidecar `.exe` matching the target triple → externalBin
-      #   * one `.dll` file → satisfies the `binaries/*.dll` resource glob
-      # Note: the DLL glob in tauri.conf.json is global (not Windows-only),
-      # so the placeholder DLL has to exist on every CI OS. Local dev uses
+      # We create empty per-platform placeholders:
+      #   * Windows: whisper-cli-<triple>.exe + ci-placeholder.dll
+      #   * Linux:   whisper-cli-<triple> + ci-placeholder.so
+      #   * macOS:   whisper-cli-<triple> (no per-platform resources glob)
+      # The `.dll` / `.so` files satisfy the per-platform
+      # tauri.<os>.conf.json `resources` glob. Local dev uses
       # scripts/download-whisper-cli.* for the real binaries.
-      - name: Stub sidecar + DLL placeholders
+      - name: Stub sidecar + resource placeholders
         shell: bash
         run: |
           mkdir -p src-tauri/binaries
-          touch "src-tauri/binaries/ci-placeholder.dll"
           case "${{ matrix.os }}" in
             windows-latest)
               touch "src-tauri/binaries/whisper-cli-x86_64-pc-windows-msvc.exe"
+              touch "src-tauri/binaries/ci-placeholder.dll"
               ;;
             macos-latest)
               touch "src-tauri/binaries/whisper-cli-aarch64-apple-darwin"
@@ -76,6 +80,7 @@ jobs:
             ubuntu-latest)
               touch "src-tauri/binaries/whisper-cli-x86_64-unknown-linux-gnu"
               chmod +x "src-tauri/binaries/whisper-cli-x86_64-unknown-linux-gnu"
+              touch "src-tauri/binaries/ci-placeholder.so"
               ;;
           esac
 

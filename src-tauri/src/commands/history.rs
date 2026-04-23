@@ -62,6 +62,7 @@ pub async fn reinject_history_entry(
         .ok_or_else(|| SerializableError::from(QuillError::NotFound(format!("entry {id}"))))?;
     TextInjector::inject(&entry.text)
         .await
+        .map(|_| ())
         .map_err(SerializableError::from)
 }
 
@@ -127,6 +128,7 @@ pub async fn retry_history_entry(
 
     TextInjector::inject(&text)
         .await
+        .map(|_| ())
         .map_err(SerializableError::from)?;
 
     let new_row = NewHistoryEntry {
