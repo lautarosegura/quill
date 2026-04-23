@@ -1,6 +1,4 @@
-<!-- Banner generated via Claude Design — replace the line below with:
-     <p align="center"><img src="docs/assets/banner.png" alt="Quill" width="800" /></p> -->
-<!-- banner placeholder — to be added before the v0.1.0 release is announced -->
+<p align="center"><img src="docs/assets/banner.png" alt="Quill" width="800" /></p>
 
 <p align="center">
   <a href="https://github.com/lautarosegura/quill/releases/latest"><img alt="Latest release" src="https://img.shields.io/github/v/release/lautarosegura/quill?style=flat-square&color=5b3fd8" /></a>
