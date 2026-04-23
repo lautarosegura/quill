@@ -1,0 +1,339 @@
+/* Fonts — Inter + JetBrains Mono, loaded from Google Fonts.
+   Must precede all non-@import statements, including Tailwind's expansion. */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
+@import 'tailwindcss';
+
+/* =========================================================================
+   Design tokens — ported verbatim from design/reference/project/Quill - App Screens.html
+   OKLCH color space for perceptually uniform color math.
+   ========================================================================= */
+
+:root {
+	--accent: oklch(0.62 0.18 280);
+	--accent-soft: oklch(0.62 0.18 280 / 0.12);
+	--accent-ring: oklch(0.62 0.18 280 / 0.35);
+
+	/* Dark (default) */
+	--bg: oklch(0.18 0.008 260);
+	--bg-elev: oklch(0.21 0.009 260);
+	--bg-panel: oklch(0.205 0.008 260);
+	--border: oklch(1 0 0 / 0.07);
+	--border-strong: oklch(1 0 0 / 0.11);
+	--text: oklch(0.96 0.005 260);
+	--text-dim: oklch(0.72 0.01 260);
+	--text-mute: oklch(0.55 0.01 260);
+	--hover: oklch(1 0 0 / 0.035);
+	--active: oklch(1 0 0 / 0.06);
+
+	color-scheme: dark;
+}
+
+html:not(.dark) {
+	--bg: oklch(0.985 0.003 80);
+	--bg-elev: oklch(1 0 0);
+	--bg-panel: oklch(0.975 0.003 80);
+	--border: oklch(0 0 0 / 0.07);
+	--border-strong: oklch(0 0 0 / 0.12);
+	--text: oklch(0.21 0.01 260);
+	--text-dim: oklch(0.42 0.01 260);
+	--text-mute: oklch(0.58 0.01 260);
+	--hover: oklch(0 0 0 / 0.035);
+	--active: oklch(0 0 0 / 0.055);
+
+	color-scheme: light;
+}
+
+html,
+body {
+	height: 100%;
+	margin: 0;
+	padding: 0;
+	background: var(--bg);
+	color: var(--text);
+	font-family: 'Inter', ui-sans-serif, system-ui, sans-serif;
+	font-feature-settings: 'cv02', 'cv03', 'cv04', 'cv11';
+	-webkit-font-smoothing: antialiased;
+	overflow: hidden;
+}
+
+/* =========================================================================
+   Utility classes — "semantic" Tailwind extensions consumed by components.
+   ========================================================================= */
+
+.bg-app {
+	background: var(--bg);
+}
+.bg-elev {
+	background: var(--bg-elev);
+}
+.bg-panel {
+	background: var(--bg-panel);
+}
+.text-base-strong {
+	color: var(--text);
+}
+.text-base-dim {
+	color: var(--text-dim);
+}
+.text-base-mute {
+	color: var(--text-mute);
+}
+.border-hair {
+	border-color: var(--border);
+}
+.border-hair-strong {
+	border-color: var(--border-strong);
+}
+.bg-hover:hover {
+	background: var(--hover);
+}
+.bg-active {
+	background: var(--active);
+}
+.accent-text {
+	color: var(--accent);
+}
+.accent-bg {
+	background: var(--accent);
+}
+.accent-soft {
+	background: var(--accent-soft);
+}
+.ring-accent {
+	box-shadow: 0 0 0 2px var(--accent-ring);
+}
+
+/* =========================================================================
+   Animations
+   ========================================================================= */
+
+@keyframes pulse-rec {
+	0%,
+	100% {
+		opacity: 1;
+		transform: scale(1);
+	}
+	50% {
+		opacity: 0.55;
+		transform: scale(0.85);
+	}
+}
+.rec-dot {
+	animation: pulse-rec 1.4s ease-in-out infinite;
+}
+
+@keyframes pulse-ring {
+	0% {
+		transform: scale(0.9);
+		opacity: 0.7;
+	}
+	100% {
+		transform: scale(1.8);
+		opacity: 0;
+	}
+}
+.rec-ring {
+	animation: pulse-ring 1.4s ease-out infinite;
+}
+
+@keyframes pulseRec {
+	0%,
+	100% {
+		opacity: 1;
+		transform: scale(1);
+	}
+	50% {
+		opacity: 0.55;
+		transform: scale(0.8);
+	}
+}
+@keyframes pulseRing {
+	0% {
+		transform: scale(0.9);
+		opacity: 0.6;
+	}
+	100% {
+		transform: scale(2.2);
+		opacity: 0;
+	}
+}
+@keyframes wave {
+	0% {
+		height: var(--h1);
+	}
+	100% {
+		height: var(--h2);
+	}
+}
+@keyframes dotPulse {
+	0%,
+	100% {
+		opacity: 0.25;
+		transform: scale(0.8);
+	}
+	40% {
+		opacity: 1;
+		transform: scale(1);
+	}
+}
+@keyframes shimmerText {
+	0% {
+		background-position: -120px 0;
+	}
+	100% {
+		background-position: 320px 0;
+	}
+}
+
+/* Shimmer band that slides over a filled progress bar — the band is a
+   translucent white gradient that scrolls left-to-right, giving the sense
+   of activity even when the percent hasn't changed for a tick. */
+@keyframes progressShimmer {
+	0% {
+		background-position: -80px 0;
+	}
+	100% {
+		background-position: calc(100% + 80px) 0;
+	}
+}
+.progress-shimmer {
+	background-image: linear-gradient(
+		90deg,
+		transparent 0%,
+		oklch(1 0 0 / 0.28) 50%,
+		transparent 100%
+	);
+	background-size: 80px 100%;
+	background-repeat: no-repeat;
+	animation: progressShimmer 1.4s linear infinite;
+}
+
+.shimmer-text {
+	color: white;
+	background: linear-gradient(
+		90deg,
+		oklch(1 0 0 / 0.6) 0%,
+		oklch(1 0 0 / 1) 50%,
+		oklch(1 0 0 / 0.6) 100%
+	);
+	background-size: 240px 100%;
+	-webkit-background-clip: text;
+	background-clip: text;
+	-webkit-text-fill-color: transparent;
+	animation: shimmerText 1.8s linear infinite;
+}
+
+.fade-in {
+	opacity: 1;
+	animation: fi 0.18s ease-out forwards;
+}
+@keyframes fi {
+	from {
+		opacity: 0;
+		transform: translateY(2px);
+	}
+	to {
+		opacity: 1;
+		transform: none;
+	}
+}
+
+/* =========================================================================
+   Scrollbar
+   ========================================================================= */
+
+::-webkit-scrollbar {
+	width: 10px;
+	height: 10px;
+}
+::-webkit-scrollbar-track {
+	background: transparent;
+}
+::-webkit-scrollbar-thumb {
+	background: var(--border-strong);
+	border-radius: 10px;
+	border: 2px solid transparent;
+	background-clip: content-box;
+}
+::-webkit-scrollbar-thumb:hover {
+	background: var(--text-mute);
+	background-clip: content-box;
+	border: 2px solid transparent;
+}
+
+/* Subtle focused row (used in Historial) */
+.row-focus {
+	box-shadow: inset 2px 0 0 var(--accent);
+	background: var(--hover);
+}
+
+/* =========================================================================
+   Keyboard caps
+   ========================================================================= */
+
+kbd,
+.kbd-inline {
+	font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, monospace;
+	font-size: 10.5px;
+	padding: 1px 5px;
+	border-radius: 4px;
+	border: 1px solid var(--border-strong);
+	background: var(--bg-elev);
+	color: var(--text-dim);
+	line-height: 1.5;
+}
+
+.kbd-big {
+	font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, monospace;
+	font-size: 12px;
+	font-weight: 500;
+	padding: 4px 8px;
+	border-radius: 6px;
+	border: 1px solid var(--border-strong);
+	background: var(--bg-elev);
+	color: var(--text);
+	line-height: 1.3;
+	box-shadow: 0 1px 0 var(--border-strong);
+}
+
+/* =========================================================================
+   Tooltip
+   ========================================================================= */
+
+.tip {
+	position: relative;
+}
+.tip > .tip-body {
+	position: absolute;
+	bottom: calc(100% + 6px);
+	left: 50%;
+	transform: translateX(-50%);
+	white-space: nowrap;
+	padding: 4px 8px;
+	border-radius: 5px;
+	background: var(--text);
+	color: var(--bg);
+	font-size: 11px;
+	font-weight: 500;
+	opacity: 0;
+	pointer-events: none;
+	transition: opacity 0.12s ease;
+	z-index: 30;
+}
+/* Down-pointing arrow from the bubble toward the anchor. Same fill as the
+   tooltip body so it reads as one continuous shape. */
+.tip > .tip-body::after {
+	content: '';
+	position: absolute;
+	top: 100%;
+	left: 50%;
+	transform: translateX(-50%);
+	width: 0;
+	height: 0;
+	border-left: 4px solid transparent;
+	border-right: 4px solid transparent;
+	border-top: 4px solid var(--text);
+}
+.tip:hover > .tip-body {
+	opacity: 0.95;
+}

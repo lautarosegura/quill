@@ -1,0 +1,73 @@
+{
+  "$schema": "../node_modules/@tauri-apps/cli/config.schema.json",
+  "productName": "Quill",
+  "version": "0.1.0",
+  "identifier": "com.lauta.quill",
+  "build": {
+    "frontendDist": "../build",
+    "devUrl": "http://localhost:5173",
+    "beforeDevCommand": "pnpm dev",
+    "beforeBuildCommand": "pnpm build"
+  },
+  "app": {
+    "windows": [
+      {
+        "label": "main",
+        "title": "Quill",
+        "url": "/main",
+        "width": 960,
+        "height": 640,
+        "minWidth": 760,
+        "minHeight": 480,
+        "resizable": true,
+        "center": true,
+        "visible": false,
+        "decorations": false,
+        "titleBarStyle": "Overlay"
+      },
+      {
+        "label": "overlay",
+        "title": "Quill Overlay",
+        "url": "/overlay",
+        "width": 220,
+        "height": 48,
+        "resizable": false,
+        "decorations": false,
+        "transparent": true,
+        "alwaysOnTop": true,
+        "skipTaskbar": true,
+        "focus": false,
+        "visible": false,
+        "shadow": false
+      },
+      {
+        "label": "wizard",
+        "title": "Quill — Setup",
+        "url": "/wizard",
+        "width": 640,
+        "height": 500,
+        "resizable": false,
+        "center": true,
+        "visible": false,
+        "decorations": false,
+        "titleBarStyle": "Overlay"
+      }
+    ],
+    "security": {
+      "csp": null
+    }
+  },
+  "bundle": {
+    "active": true,
+    "targets": "all",
+    "externalBin": ["binaries/whisper-cli"],
+    "resources": ["binaries/*.dll"],
+    "icon": [
+      "icons/32x32.png",
+      "icons/128x128.png",
+      "icons/128x128@2x.png",
+      "icons/icon.icns",
+      "icons/icon.ico"
+    ]
+  }
+}

@@ -1,0 +1,49 @@
+# Node
+node_modules/
+.svelte-kit/
+build/
+.vite/
+dist/
+.output/
+.vercel/
+.netlify/
+.wrangler/
+vite.config.js.timestamp-*
+vite.config.ts.timestamp-*
+
+# Rust
+src-tauri/target/
+
+# Tauri build artifacts
+src-tauri/gen/
+src-tauri/binaries/*
+!src-tauri/binaries/.gitkeep
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.json
+.idea/
+*.swp
+*.swo
+
+# Env
+.env
+.env.local
+.env.*
+!.env.example
+!.env.test
+
+# Logs
+*.log
+
+# Internal development docs — kept locally but not published to the public repo
+docs/superpowers/
+design/reference/
+
+# Release-time artifacts
+RELEASE_NOTES_*.md

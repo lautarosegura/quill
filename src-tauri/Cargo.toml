@@ -1,0 +1,80 @@
+[package]
+name = "quill"
+version = "0.1.0"
+description = "Voice-to-text dictation app for Windows and macOS."
+authors = ["Lautaro Segura"]
+license = "MIT OR Apache-2.0"
+repository = ""
+edition = "2021"
+rust-version = "1.77.2"
+
+[lib]
+name = "quill_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[build-dependencies]
+tauri-build = { version = "2.5.6", features = [] }
+
+[dependencies]
+tauri = { version = "2.10.3", features = ["tray-icon"] }
+tauri-plugin-log = "2"
+tauri-plugin-shell = "2"
+tauri-plugin-notification = "2"
+tauri-plugin-autostart = "2"
+
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+thiserror = "1.0"
+log = "0.4"
+dirs = "5.0"
+
+# Phase 2 additions
+async-trait = "0.1"
+cpal = "0.15"
+hound = "3.5"
+rdev = { version = "0.5", features = ["unstable_grab"] }
+enigo = "0.2"
+arboard = "3.4"
+uuid = { version = "1.10", features = ["v4"] }
+tokio = { version = "1", features = ["full"] }
+
+# Phase 4 additions
+reqwest = { version = "0.12", default-features = false, features = ["json", "multipart", "stream", "rustls-tls"] }
+tokio-util = { version = "0.7", features = ["io"] }
+parking_lot = "0.12"
+
+# Phase 5 additions
+rusqlite = { version = "0.33", features = ["bundled"] }
+sha2 = "0.10"
+hex = "0.4"
+sysinfo = "0.32"
+chrono = { version = "0.4", features = ["serde"] }
+futures-util = "0.3"
+
+# Phase 6 additions
+rodio = "0.19"
+
+# keyring 3.x requires picking a platform backend explicitly.
+# Use the native credential store on each OS.
+[target.'cfg(windows)'.dependencies]
+keyring = { version = "3.0", features = ["windows-native"] }
+# For GetForegroundWindow / GetWindowText — captures the focused window title
+# at dictation start so Historial can show "dictated into: Slack — #channel".
+windows-sys = { version = "0.59", features = ["Win32_UI_WindowsAndMessaging", "Win32_Foundation"] }
+
+[target.'cfg(target_os = "macos")'.dependencies]
+keyring = { version = "3.0", features = ["apple-native"] }
+
+[target.'cfg(target_os = "linux")'.dependencies]
+keyring = { version = "3.0", features = ["linux-native-sync-persistent", "crypto-rust"] }
+
+[dev-dependencies]
+tempfile = "3.10"
+wiremock = "0.6"
+
+[profile.release]
+codegen-units = 1
+lto = true
+opt-level = "s"
+panic = "abort"
+strip = true
