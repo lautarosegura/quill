@@ -50,8 +50,8 @@ pub async fn list_local_models() -> Result<Vec<LocalModel>, SerializableError> {
     }
 
     let mut out = Vec::new();
-    let entries = std::fs::read_dir(&dir)
-        .map_err(|e| SerializableError::from(QuillError::Io(e)))?;
+    let entries =
+        std::fs::read_dir(&dir).map_err(|e| SerializableError::from(QuillError::Io(e)))?;
 
     for entry in entries.flatten() {
         let path = entry.path();
@@ -86,9 +86,7 @@ pub async fn start_mic_test(
 
 /// Stops the live mic level probe. Safe to call when nothing is running.
 #[tauri::command]
-pub async fn stop_mic_test(
-    state: tauri::State<'_, AppState>,
-) -> Result<(), SerializableError> {
+pub async fn stop_mic_test(state: tauri::State<'_, AppState>) -> Result<(), SerializableError> {
     state.mic_test.lock().unwrap().stop();
     Ok(())
 }

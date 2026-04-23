@@ -41,16 +41,12 @@ pub async fn delete_history_entry(
 }
 
 #[tauri::command]
-pub async fn clear_all_history(
-    state: tauri::State<'_, AppState>,
-) -> Result<(), SerializableError> {
+pub async fn clear_all_history(state: tauri::State<'_, AppState>) -> Result<(), SerializableError> {
     state.history.clear_all().map_err(SerializableError::from)
 }
 
 #[tauri::command]
-pub async fn count_history(
-    state: tauri::State<'_, AppState>,
-) -> Result<i64, SerializableError> {
+pub async fn count_history(state: tauri::State<'_, AppState>) -> Result<i64, SerializableError> {
     state.history.count().map_err(SerializableError::from)
 }
 
@@ -63,9 +59,7 @@ pub async fn reinject_history_entry(
         .history
         .get(id)
         .map_err(SerializableError::from)?
-        .ok_or_else(|| {
-            SerializableError::from(QuillError::NotFound(format!("entry {id}")))
-        })?;
+        .ok_or_else(|| SerializableError::from(QuillError::NotFound(format!("entry {id}"))))?;
     TextInjector::inject(&entry.text)
         .await
         .map_err(SerializableError::from)
@@ -97,9 +91,7 @@ pub async fn retry_history_entry(
         ))
     })?;
 
-    let wav = std::fs::read(wav_path).map_err(|e| {
-        SerializableError::from(QuillError::Io(e))
-    })?;
+    let wav = std::fs::read(wav_path).map_err(|e| SerializableError::from(QuillError::Io(e)))?;
 
     let (language, vocabulary, engine_choice) = {
         let cfg = state.config.read().await;

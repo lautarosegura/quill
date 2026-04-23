@@ -31,10 +31,7 @@ impl GroqEngine {
         Self::new_with_model(api_key, DEFAULT_MODEL.to_string())
     }
 
-    pub fn new_with_model(
-        api_key: String,
-        model: String,
-    ) -> Result<Self, TranscriptionError> {
+    pub fn new_with_model(api_key: String, model: String) -> Result<Self, TranscriptionError> {
         let client = reqwest::Client::builder()
             .timeout(Duration::from_secs(REQUEST_TIMEOUT_SECS))
             .build()
@@ -116,9 +113,9 @@ impl GroqEngine {
             return Err(match status.as_u16() {
                 401 => TranscriptionError::Unauthorized,
                 402 | 429 => TranscriptionError::RateLimited,
-                500..=599 => TranscriptionError::Network(format!(
-                    "Groq server error {status}: {body_text}"
-                )),
+                500..=599 => {
+                    TranscriptionError::Network(format!("Groq server error {status}: {body_text}"))
+                }
                 400 => TranscriptionError::AudioRejected(body_text),
                 _ => TranscriptionError::Network(format!("HTTP {status}: {body_text}")),
             });

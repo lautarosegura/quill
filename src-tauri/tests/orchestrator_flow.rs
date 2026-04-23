@@ -88,7 +88,7 @@ async fn orchestrator_happy_path_emits_expected_states() {
         }
     });
 
-    tx.send(HotkeyEvent::Pressed).unwrap();
+    tx.send(HotkeyEvent::Pressed { source_app: None }).unwrap();
     tokio::time::sleep(std::time::Duration::from_millis(400)).await;
     tx.send(HotkeyEvent::Released { held_ms: 400 }).unwrap();
     tokio::time::sleep(std::time::Duration::from_millis(500)).await;
@@ -99,9 +99,12 @@ async fn orchestrator_happy_path_emits_expected_states() {
     let states = emitter.states.lock().unwrap();
     assert!(states.contains(&TranscriptionState::Recording));
     assert!(states.contains(&TranscriptionState::Transcribing));
-    let terminal_ok = states
-        .iter()
-        .any(|s| matches!(s, TranscriptionState::Idle | TranscriptionState::Error { .. }));
+    let terminal_ok = states.iter().any(|s| {
+        matches!(
+            s,
+            TranscriptionState::Idle | TranscriptionState::Error { .. }
+        )
+    });
     assert!(terminal_ok, "expected Idle or Error in {states:?}");
 }
 
@@ -132,7 +135,7 @@ async fn orchestrator_short_tap_ignored() {
         }
     });
 
-    tx.send(HotkeyEvent::Pressed).unwrap();
+    tx.send(HotkeyEvent::Pressed { source_app: None }).unwrap();
     tx.send(HotkeyEvent::Released { held_ms: 100 }).unwrap();
     tokio::time::sleep(std::time::Duration::from_millis(200)).await;
 

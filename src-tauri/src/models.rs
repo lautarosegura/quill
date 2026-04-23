@@ -132,11 +132,7 @@ impl ModelManager {
     /// Streams the model file. `on_progress(downloaded, total)` fires roughly
     /// every ~512 KB. Writes to a `.partial` file and renames on success, so a
     /// crashed download never leaves a half-complete `.bin` behind.
-    pub async fn download<F>(
-        &self,
-        name: &str,
-        on_progress: F,
-    ) -> Result<PathBuf, QuillError>
+    pub async fn download<F>(&self, name: &str, on_progress: F) -> Result<PathBuf, QuillError>
     where
         F: Fn(u64, u64) + Send + Sync + 'static,
     {
@@ -179,8 +175,8 @@ impl ModelManager {
         const PROGRESS_INTERVAL: u64 = 512 * 1024;
 
         while let Some(chunk_result) = stream.next().await {
-            let chunk = chunk_result
-                .map_err(|e| QuillError::Other(format!("download chunk: {e}")))?;
+            let chunk =
+                chunk_result.map_err(|e| QuillError::Other(format!("download chunk: {e}")))?;
             file.write_all(&chunk).await?;
             hasher.update(&chunk);
             downloaded += chunk.len() as u64;
@@ -207,9 +203,7 @@ impl ModelManager {
                 )));
             }
         } else {
-            log::warn!(
-                "No pinned SHA-256 for {name} — download completed without verification"
-            );
+            log::warn!("No pinned SHA-256 for {name} — download completed without verification");
         }
 
         std::fs::rename(&partial_path, &final_path)?;

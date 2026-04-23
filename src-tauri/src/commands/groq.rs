@@ -75,9 +75,7 @@ pub async fn set_groq_model(
 }
 
 #[tauri::command]
-pub async fn delete_groq_key(
-    state: tauri::State<'_, AppState>,
-) -> Result<(), SerializableError> {
+pub async fn delete_groq_key(state: tauri::State<'_, AppState>) -> Result<(), SerializableError> {
     SecretStore::delete_groq_key().map_err(SerializableError::from)?;
     state.dispatch.set_groq(None).await;
     Ok(())
@@ -145,7 +143,14 @@ fn mask(key: &str) -> String {
         return format!("{} chars", chars.len());
     }
     let prefix: String = chars.iter().take(4).collect();
-    let suffix: String = chars.iter().rev().take(2).collect::<Vec<_>>().into_iter().rev().collect();
+    let suffix: String = chars
+        .iter()
+        .rev()
+        .take(2)
+        .collect::<Vec<_>>()
+        .into_iter()
+        .rev()
+        .collect();
     format!("{prefix}...{suffix}")
 }
 
@@ -248,10 +253,7 @@ pub async fn list_groq_models() -> Result<GroqModelsResult, SerializableError> {
     };
 
     if !response.status().is_success() {
-        return Ok(fallback_catalog(format!(
-            "Groq HTTP {}",
-            response.status()
-        )));
+        return Ok(fallback_catalog(format!("Groq HTTP {}", response.status())));
     }
 
     let parsed: GroqModelsApiResponse = match response.json().await {
@@ -299,7 +301,9 @@ pub async fn list_groq_models() -> Result<GroqModelsResult, SerializableError> {
 fn fallback_catalog(reason: String) -> GroqModelsResult {
     GroqModelsResult {
         live_check_succeeded: false,
-        error: Some(format!("No pudimos verificar con Groq ({reason}) — catálogo estático.")),
+        error: Some(format!(
+            "No pudimos verificar con Groq ({reason}) — catálogo estático."
+        )),
         models: catalog::KNOWN_GROQ_MODELS
             .iter()
             .map(|m| catalog_to_entry(m, GroqModelKind::CatalogOnly))

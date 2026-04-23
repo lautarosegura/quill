@@ -19,8 +19,8 @@ impl TextInjector {
             return Ok(());
         }
 
-        let mut clipboard = Clipboard::new()
-            .map_err(|e| QuillError::Injection(format!("clipboard init: {e}")))?;
+        let mut clipboard =
+            Clipboard::new().map_err(|e| QuillError::Injection(format!("clipboard init: {e}")))?;
 
         // Save existing clipboard text (only preserve text; other types are
         // not restored). Skip if it's absurdly large.

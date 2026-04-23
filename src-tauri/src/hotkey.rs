@@ -39,8 +39,12 @@ use crate::types::{Keybind, Modifier};
 pub enum HotkeyEvent {
     /// User started the chord. `source_app` is the title of the foreground
     /// window at that moment (captured on the hook thread, cheap).
-    Pressed { source_app: Option<String> },
-    Released { held_ms: u64 },
+    Pressed {
+        source_app: Option<String>,
+    },
+    Released {
+        held_ms: u64,
+    },
     /// User pressed Escape — the orchestrator cancels an active (locked)
     /// session if there is one, otherwise ignores.
     CancelRequested,
@@ -123,7 +127,10 @@ fn handle_event(
             if matches!(k, Key::KeyZ) {
                 log::info!(
                     "Z press observed: alt={} shift={} ctrl={} meta={}",
-                    st.alt, st.shift, st.ctrl, st.meta
+                    st.alt,
+                    st.shift,
+                    st.ctrl,
+                    st.meta
                 );
             }
             if matches!(k, Key::KeyZ) && st.alt && st.shift && !st.ctrl && !st.meta {
@@ -351,7 +358,11 @@ mod tests {
             meta: true,
             ..Default::default()
         };
-        assert!(should_activate_chord(&st, &Key::MetaLeft, &modifier_only_kb()));
+        assert!(should_activate_chord(
+            &st,
+            &Key::MetaLeft,
+            &modifier_only_kb()
+        ));
     }
 
     #[test]
@@ -376,7 +387,11 @@ mod tests {
         let st = HotkeyState::default();
         assert!(should_suppress_press(&st, &Key::Space, &trigger_kb()));
         // Modifiers themselves pass through.
-        assert!(!should_suppress_press(&st, &Key::ControlLeft, &trigger_kb()));
+        assert!(!should_suppress_press(
+            &st,
+            &Key::ControlLeft,
+            &trigger_kb()
+        ));
     }
 
     #[test]
@@ -387,8 +402,16 @@ mod tests {
             ctrl: true,
             ..Default::default()
         };
-        assert!(should_suppress_press(&st, &Key::MetaLeft, &modifier_only_kb()));
-        assert!(should_suppress_press(&st, &Key::MetaRight, &modifier_only_kb()));
+        assert!(should_suppress_press(
+            &st,
+            &Key::MetaLeft,
+            &modifier_only_kb()
+        ));
+        assert!(should_suppress_press(
+            &st,
+            &Key::MetaRight,
+            &modifier_only_kb()
+        ));
     }
 
     #[test]
@@ -396,7 +419,11 @@ mod tests {
         // Ctrl NOT held → user is pressing Win alone, not our chord. Let it
         // through so Start menu, Win+D, etc. still work.
         let st = HotkeyState::default();
-        assert!(!should_suppress_press(&st, &Key::MetaLeft, &modifier_only_kb()));
+        assert!(!should_suppress_press(
+            &st,
+            &Key::MetaLeft,
+            &modifier_only_kb()
+        ));
     }
 
     #[test]
@@ -407,8 +434,16 @@ mod tests {
             meta: true,
             ..Default::default()
         };
-        assert!(!should_suppress_press(&st, &Key::ControlLeft, &modifier_only_kb()));
-        assert!(!should_suppress_press(&st, &Key::ControlRight, &modifier_only_kb()));
+        assert!(!should_suppress_press(
+            &st,
+            &Key::ControlLeft,
+            &modifier_only_kb()
+        ));
+        assert!(!should_suppress_press(
+            &st,
+            &Key::ControlRight,
+            &modifier_only_kb()
+        ));
     }
 
     #[test]

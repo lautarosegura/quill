@@ -41,7 +41,9 @@ pub fn cleanup_older_than(max_age: Duration) {
         if !meta.is_file() {
             continue;
         }
-        let Ok(modified) = meta.modified() else { continue };
+        let Ok(modified) = meta.modified() else {
+            continue;
+        };
         let Ok(age) = now.duration_since(modified) else {
             continue;
         };

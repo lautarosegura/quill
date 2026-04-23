@@ -33,7 +33,10 @@ async fn happy_path_returns_text() {
 
     let engine = GroqEngine::new_for_test("sk-test".into(), server.uri());
     let wav = fake_wav();
-    let result = engine.transcribe(req(&wav, Language::Es, None)).await.unwrap();
+    let result = engine
+        .transcribe(req(&wav, Language::Es, None))
+        .await
+        .unwrap();
     assert_eq!(result.text, "hola mundo");
     assert_eq!(result.model, DEFAULT_MODEL);
 }
@@ -48,7 +51,10 @@ async fn unauthorized_returns_unauthorized() {
 
     let engine = GroqEngine::new_for_test("sk-bad".into(), server.uri());
     let wav = fake_wav();
-    let err = engine.transcribe(req(&wav, Language::Es, None)).await.unwrap_err();
+    let err = engine
+        .transcribe(req(&wav, Language::Es, None))
+        .await
+        .unwrap_err();
     assert!(matches!(err, TranscriptionError::Unauthorized));
 }
 
@@ -62,7 +68,10 @@ async fn rate_limit_429_returns_rate_limited() {
 
     let engine = GroqEngine::new_for_test("sk-test".into(), server.uri());
     let wav = fake_wav();
-    let err = engine.transcribe(req(&wav, Language::Es, None)).await.unwrap_err();
+    let err = engine
+        .transcribe(req(&wav, Language::Es, None))
+        .await
+        .unwrap_err();
     assert!(matches!(err, TranscriptionError::RateLimited));
 }
 
@@ -76,7 +85,10 @@ async fn payment_required_402_returns_rate_limited() {
 
     let engine = GroqEngine::new_for_test("sk-test".into(), server.uri());
     let wav = fake_wav();
-    let err = engine.transcribe(req(&wav, Language::Es, None)).await.unwrap_err();
+    let err = engine
+        .transcribe(req(&wav, Language::Es, None))
+        .await
+        .unwrap_err();
     assert!(matches!(err, TranscriptionError::RateLimited));
 }
 
@@ -90,7 +102,10 @@ async fn server_error_5xx_returns_network() {
 
     let engine = GroqEngine::new_for_test("sk-test".into(), server.uri());
     let wav = fake_wav();
-    let err = engine.transcribe(req(&wav, Language::Es, None)).await.unwrap_err();
+    let err = engine
+        .transcribe(req(&wav, Language::Es, None))
+        .await
+        .unwrap_err();
     match err {
         TranscriptionError::Network(msg) => assert!(msg.contains("503")),
         other => panic!("expected Network error, got {other:?}"),
@@ -107,7 +122,10 @@ async fn bad_request_400_returns_audio_rejected() {
 
     let engine = GroqEngine::new_for_test("sk-test".into(), server.uri());
     let wav = fake_wav();
-    let err = engine.transcribe(req(&wav, Language::Es, None)).await.unwrap_err();
+    let err = engine
+        .transcribe(req(&wav, Language::Es, None))
+        .await
+        .unwrap_err();
     assert!(matches!(err, TranscriptionError::AudioRejected(_)));
 }
 
@@ -126,7 +144,10 @@ async fn slow_response_returns_timeout() {
     // new_for_test uses 1s client timeout — 5s delay will trip it.
     let engine = GroqEngine::new_for_test("sk-test".into(), server.uri());
     let wav = fake_wav();
-    let err = engine.transcribe(req(&wav, Language::Es, None)).await.unwrap_err();
+    let err = engine
+        .transcribe(req(&wav, Language::Es, None))
+        .await
+        .unwrap_err();
     match err {
         TranscriptionError::Timeout { .. } => {}
         TranscriptionError::Network(msg) if msg.contains("timed out") => {}
@@ -141,7 +162,10 @@ async fn connection_refused_returns_network() {
     // acceptable; the point is we don't panic and we don't call it a success.
     let engine = GroqEngine::new_for_test("sk-test".into(), "http://127.0.0.1:1".into());
     let wav = fake_wav();
-    let err = engine.transcribe(req(&wav, Language::Es, None)).await.unwrap_err();
+    let err = engine
+        .transcribe(req(&wav, Language::Es, None))
+        .await
+        .unwrap_err();
     assert!(
         matches!(
             err,
@@ -162,8 +186,14 @@ async fn omits_prompt_when_empty_or_none() {
 
     let engine = GroqEngine::new_for_test("sk-test".into(), server.uri());
     let wav = fake_wav();
-    let _ok_none = engine.transcribe(req(&wav, Language::Es, None)).await.unwrap();
-    let _ok_empty = engine.transcribe(req(&wav, Language::Es, Some(""))).await.unwrap();
+    let _ok_none = engine
+        .transcribe(req(&wav, Language::Es, None))
+        .await
+        .unwrap();
+    let _ok_empty = engine
+        .transcribe(req(&wav, Language::Es, Some("")))
+        .await
+        .unwrap();
 }
 
 #[tokio::test]
@@ -179,11 +209,17 @@ async fn circuit_breaker_opens_after_repeated_failures() {
     let wav = fake_wav();
 
     for _ in 0..3 {
-        let err = engine.transcribe(req(&wav, Language::Es, None)).await.unwrap_err();
+        let err = engine
+            .transcribe(req(&wav, Language::Es, None))
+            .await
+            .unwrap_err();
         assert!(matches!(err, TranscriptionError::Network(_)));
     }
 
-    let err = engine.transcribe(req(&wav, Language::Es, None)).await.unwrap_err();
+    let err = engine
+        .transcribe(req(&wav, Language::Es, None))
+        .await
+        .unwrap_err();
     match err {
         TranscriptionError::Network(msg) => {
             assert!(

@@ -104,10 +104,7 @@ pub fn spawn_beep_listener(app: AppHandle, config: Arc<RwLock<Config>>) {
         // Gate on the user's opt-in. `try_read` is non-blocking and safe from
         // the tokio runtime worker this closure runs on — if a write lock is
         // held right now, we just skip this beep rather than panic.
-        let sounds_on = config
-            .try_read()
-            .map(|c| c.sounds_enabled)
-            .unwrap_or(false);
+        let sounds_on = config.try_read().map(|c| c.sounds_enabled).unwrap_or(false);
         if !sounds_on {
             return;
         }

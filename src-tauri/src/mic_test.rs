@@ -50,9 +50,7 @@ impl MicTestController {
                 Some(name) => host
                     .input_devices()
                     .ok()
-                    .and_then(|mut iter| {
-                        iter.find(|d| d.name().ok().as_deref() == Some(name))
-                    })
+                    .and_then(|mut iter| iter.find(|d| d.name().ok().as_deref() == Some(name)))
                     .or_else(|| host.default_input_device()),
                 None => host.default_input_device(),
             };

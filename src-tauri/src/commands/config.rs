@@ -8,9 +8,7 @@ use crate::types::Keybind;
 use crate::AppState;
 
 #[tauri::command]
-pub async fn get_config(
-    state: tauri::State<'_, AppState>,
-) -> Result<Config, SerializableError> {
+pub async fn get_config(state: tauri::State<'_, AppState>) -> Result<Config, SerializableError> {
     // Read from the live, shared config — runtime mutations by other
     // commands are visible to the frontend.
     let cfg = state.config.read().await.clone();

@@ -34,9 +34,7 @@ CREATE INDEX IF NOT EXISTS idx_created_at ON transcriptions(created_at DESC);
 /// idempotent; we ignore errors because SQLite's ALTER TABLE ADD COLUMN
 /// fails when the column already exists and there's no IF NOT EXISTS guard
 /// for that op. Keep the list short and append-only.
-const MIGRATIONS: &[&str] = &[
-    "ALTER TABLE transcriptions ADD COLUMN source_app TEXT",
-];
+const MIGRATIONS: &[&str] = &["ALTER TABLE transcriptions ADD COLUMN source_app TEXT"];
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct HistoryEntry {
@@ -79,8 +77,8 @@ impl HistoryStore {
         if let Some(parent) = path.parent() {
             std::fs::create_dir_all(parent)?;
         }
-        let conn = Connection::open(path)
-            .map_err(|e| QuillError::Other(format!("sqlite open: {e}")))?;
+        let conn =
+            Connection::open(path).map_err(|e| QuillError::Other(format!("sqlite open: {e}")))?;
         conn.execute_batch(SCHEMA)
             .map_err(|e| QuillError::Other(format!("sqlite schema: {e}")))?;
 

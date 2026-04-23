@@ -4,8 +4,8 @@ use tauri::{AppHandle, Emitter};
 
 use crate::error::SerializableError;
 use crate::events::{
-    ModelDownloadComplete, ModelDownloadError, ModelDownloadProgress,
-    MODEL_DOWNLOAD_COMPLETE, MODEL_DOWNLOAD_ERROR, MODEL_DOWNLOAD_PROGRESS,
+    ModelDownloadComplete, ModelDownloadError, ModelDownloadProgress, MODEL_DOWNLOAD_COMPLETE,
+    MODEL_DOWNLOAD_ERROR, MODEL_DOWNLOAD_PROGRESS,
 };
 use crate::models::{ModelEntry, ModelManager};
 
@@ -22,10 +22,7 @@ pub async fn delete_model(name: String) -> Result<(), SerializableError> {
 }
 
 #[tauri::command]
-pub async fn download_model(
-    app: AppHandle,
-    name: String,
-) -> Result<(), SerializableError> {
+pub async fn download_model(app: AppHandle, name: String) -> Result<(), SerializableError> {
     let mgr = ModelManager::new();
     let name_clone = name.clone();
     let app_for_progress = app.clone();

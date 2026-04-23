@@ -29,7 +29,7 @@ async fn opens_after_threshold_consecutive_failures() {
 async fn failures_outside_window_dont_count() {
     // Short window: 50ms failure window, 50ms reset.
     let cb = CircuitBreaker::new(3, 0, 0); // 0s window + 0s reset means effectively no threshold accumulation
-    // Since window is 0, no failure can ever be "in window" — breaker never trips.
+                                           // Since window is 0, no failure can ever be "in window" — breaker never trips.
     for _ in 0..5 {
         cb.record_failure().await;
     }
@@ -48,7 +48,9 @@ async fn success_resets_failure_counter() {
     // Next 2 failures should not trip — counter was reset.
     cb.record_failure().await;
     cb.record_failure().await;
-    cb.allow_request().await.expect("should allow, only 2 failures post-reset");
+    cb.allow_request()
+        .await
+        .expect("should allow, only 2 failures post-reset");
 }
 
 #[tokio::test]
@@ -73,7 +75,9 @@ async fn transitions_to_half_open_after_reset_timeout() {
     cb.record_failure().await;
     // Wait a hair past 0 (already past — 0s reset is immediate)
     sleep(Duration::from_millis(10)).await;
-    cb.allow_request().await.expect("should transition to HalfOpen and allow");
+    cb.allow_request()
+        .await
+        .expect("should transition to HalfOpen and allow");
 }
 
 #[tokio::test]
@@ -98,8 +102,8 @@ async fn half_open_failure_transitions_back_to_open() {
     sleep(Duration::from_millis(10)).await;
     cb.allow_request().await.unwrap(); // HalfOpen
     cb.record_failure().await; // HalfOpen + failure → Open
-    // Immediately, Open should reject (with a fresh reset timer — well, since reset=0, it'd go HalfOpen again).
-    // To test Open actually tripped back, use a breaker with non-zero reset:
+                               // Immediately, Open should reject (with a fresh reset timer — well, since reset=0, it'd go HalfOpen again).
+                               // To test Open actually tripped back, use a breaker with non-zero reset:
     let cb2 = CircuitBreaker::new(2, 10, 10);
     cb2.record_failure().await;
     cb2.record_failure().await;

@@ -104,6 +104,9 @@ async fn download_streaming_calls_progress_and_verifies_sha() {
 
     std::fs::rename(&partial, &final_path).unwrap();
     assert!(final_path.exists());
-    assert_eq!(std::fs::metadata(&final_path).unwrap().len(), payload.len() as u64);
+    assert_eq!(
+        std::fs::metadata(&final_path).unwrap().len(),
+        payload.len() as u64
+    );
     assert!(!progress_calls.lock().unwrap().is_empty());
 }

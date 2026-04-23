@@ -145,13 +145,18 @@ impl TranscriptionEngine for LocalEngine {
             .kill_on_drop(true);
 
         let started = Instant::now();
-        let child = cmd.spawn().map_err(|e| TranscriptionError::SubprocessFailed {
-            code: -1,
-            stderr: format!("spawn failed: {e}"),
-        })?;
+        let child = cmd
+            .spawn()
+            .map_err(|e| TranscriptionError::SubprocessFailed {
+                code: -1,
+                stderr: format!("spawn failed: {e}"),
+            })?;
 
-        let output = match timeout(Duration::from_secs(self.timeout_secs), child.wait_with_output())
-            .await
+        let output = match timeout(
+            Duration::from_secs(self.timeout_secs),
+            child.wait_with_output(),
+        )
+        .await
         {
             Ok(r) => r.map_err(|e| TranscriptionError::SubprocessFailed {
                 code: -1,

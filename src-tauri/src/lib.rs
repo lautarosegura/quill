@@ -174,9 +174,7 @@ pub fn run() {
             // so AppState is available to commands the moment the frontend calls.
             // Only the AudioRecorder + orchestrator start in the background spawn.
             let sidecar_dir = resolve_sidecar_dir(app);
-            let loaded = ConfigStore::load()
-                .unwrap_or(None)
-                .unwrap_or_default();
+            let loaded = ConfigStore::load().unwrap_or(None).unwrap_or_default();
             let config: Arc<RwLock<Config>> = Arc::new(RwLock::new(loaded));
             // Pass the shared config to LocalEngine so it re-reads
             // local_model_name on every transcribe — switching the model
@@ -188,9 +186,8 @@ pub fn run() {
             {
                 let dispatch = Arc::clone(&dispatch);
                 let groq_model = {
-                    let cfg_guard = tauri::async_runtime::block_on(async {
-                        config.read().await.clone()
-                    });
+                    let cfg_guard =
+                        tauri::async_runtime::block_on(async { config.read().await.clone() });
                     cfg_guard.groq_model
                 };
                 tauri::async_runtime::block_on(async move {
@@ -225,9 +222,7 @@ pub fn run() {
 
             let app_handle = app.handle().clone();
             tauri::async_runtime::spawn(async move {
-                if let Err(e) =
-                    bootstrap_dictation(app_handle, dispatch, config, history).await
-                {
+                if let Err(e) = bootstrap_dictation(app_handle, dispatch, config, history).await {
                     log::error!("dictation bootstrap failed: {e}");
                 }
             });

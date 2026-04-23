@@ -73,8 +73,9 @@ pub fn spawn_state_listener(app: &AppHandle) {
         // "busy" until the whole round-trip finishes (matches the overlay).
         let rgba: &[u8] = match state {
             // Idle + Cancelled both read as "nothing happening" in the tray.
-            events::TranscriptionState::Idle
-            | events::TranscriptionState::Cancelled => TRAY_IDLE_RGBA,
+            events::TranscriptionState::Idle | events::TranscriptionState::Cancelled => {
+                TRAY_IDLE_RGBA
+            }
             events::TranscriptionState::Recording
             | events::TranscriptionState::Transcribing
             | events::TranscriptionState::Injecting => TRAY_RECORDING_RGBA,

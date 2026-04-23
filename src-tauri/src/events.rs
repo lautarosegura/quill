@@ -20,7 +20,9 @@ pub enum TranscriptionState {
     /// User aborted a locked/in-progress recording via Escape. The audio is
     /// discarded. The overlay shows this briefly then auto-transitions to Idle.
     Cancelled,
-    Error { message: String },
+    Error {
+        message: String,
+    },
 }
 
 #[derive(Debug, Clone, Serialize)]
