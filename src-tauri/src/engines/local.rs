@@ -120,6 +120,16 @@ impl TranscriptionEngine for LocalEngine {
 
         tokio::fs::write(&wav_path, req.audio_wav).await?;
 
+        log::info!(
+            "whisper-cli transcribe: model={} lang={} prompt_len={}",
+            model_path
+                .file_name()
+                .and_then(|s| s.to_str())
+                .unwrap_or("?"),
+            req.language.code(),
+            req.prompt.map(|p| p.len()).unwrap_or(0)
+        );
+
         let mut cmd = Command::new(&self.sidecar_exe);
         cmd.current_dir(&self.sidecar_dir)
             .arg("-m")
