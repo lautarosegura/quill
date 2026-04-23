@@ -1,0 +1,97 @@
+name: Release
+
+# Builds signed-installer assets for Windows + Linux on every tagged release.
+# Triggered by:
+#   * pushing a tag like `v0.2.0`
+#   * the Actions "Run workflow" button (workflow_dispatch)
+#
+# The job creates a GitHub draft Release and uploads the Tauri-produced
+# installers per OS. Maintainer reviews the draft, edits release notes, and
+# hits Publish.
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+jobs:
+  release:
+    permissions:
+      contents: write
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # Ubuntu 22.04 gives us the oldest glibc (2.35) that's still in
+          # active Canonical support — maximizes portability of the
+          # .AppImage to older distros. 24.04 would tie the AppImage to
+          # glibc 2.39 which drops too many users.
+          - platform: ubuntu-22.04
+            bundle-label: linux
+          - platform: windows-latest
+            bundle-label: windows
+    runs-on: ${{ matrix.platform }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Linux system deps
+        if: matrix.platform == 'ubuntu-22.04'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libwebkit2gtk-4.1-dev \
+            libayatana-appindicator3-dev \
+            librsvg2-dev \
+            libssl-dev \
+            pkg-config \
+            libgtk-3-dev \
+            libasound2-dev \
+            libxdo-dev \
+            libxtst-dev \
+            libxi-dev \
+            libx11-dev \
+            libxcb1-dev \
+            libwayland-dev \
+            libxkbcommon-dev \
+            build-essential \
+            cmake \
+            git
+
+      - uses: actions-rust-lang/setup-rust-toolchain@v1
+        with:
+          toolchain: stable
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      - name: Fetch whisper-cli sidecar (+ bundled libs on Linux)
+        shell: bash
+        run: |
+          if [ "${{ matrix.platform }}" = "windows-latest" ]; then
+            pwsh -File ./scripts/download-whisper-cli.ps1
+          else
+            bash ./scripts/download-whisper-cli.sh
+          fi
+
+      - name: Build installers via tauri-action
+        uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tagName: ${{ github.ref_name }}
+          releaseName: 'Quill ${{ github.ref_name }}'
+          releaseDraft: true
+          prerelease: false
+          # On Linux the per-platform resources come from
+          # src-tauri/tauri.linux.conf.json (auto-merged by the Tauri CLI).
+          # Same for tauri.windows.conf.json on Windows. No additional args.

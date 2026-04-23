@@ -79,7 +79,13 @@
 	}
 
 	const STATUS_TEXT: Record<
-		'idle' | 'recording' | 'transcribing' | 'injecting' | 'error' | 'cancelled',
+		| 'idle'
+		| 'recording'
+		| 'transcribing'
+		| 'injecting'
+		| 'error'
+		| 'cancelled'
+		| 'clipboard-only',
 		string
 	> = {
 		idle: 'Listo',
@@ -87,7 +93,8 @@
 		transcribing: 'Transcribiendo',
 		injecting: 'Insertando',
 		error: 'Error',
-		cancelled: 'Cancelada'
+		cancelled: 'Cancelada',
+		'clipboard-only': 'Ctrl+V para pegar'
 	};
 
 	const footerText = $derived(STATUS_TEXT[status.value.state]);
@@ -109,6 +116,7 @@
 		if (s.state === 'injecting') return 'pegando en la app activa';
 		if (s.state === 'error') return s.message ?? 'ver detalles';
 		if (s.state === 'cancelled') return 'descartaste el audio';
+		if (s.state === 'clipboard-only') return `${s.text_len} caracteres listos`;
 		return 'Esperando atajo';
 	});
 </script>

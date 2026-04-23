@@ -26,7 +26,7 @@ use crate::events::{TranscriptionState, HISTORY_CHANGED, TRANSCRIPTION_STATE_CHA
 use crate::failed_wav;
 use crate::history::{HistoryStore, NewHistoryEntry};
 use crate::hotkey::HotkeyEvent;
-use crate::injector::TextInjector;
+use crate::injector::{InjectOutcome, TextInjector};
 use crate::post_process;
 use crate::types::Engine;
 
@@ -229,10 +229,26 @@ impl AppOrchestrator {
             entry.text.len(),
             entry.id
         );
-        if let Err(e) = TextInjector::inject(&entry.text).await {
-            log::warn!("reinject_last inject failed: {e}");
-        } else {
-            log::info!("on_reinject_last: inject succeeded");
+        match TextInjector::inject(&entry.text).await {
+            Ok(InjectOutcome::Pasted) => {
+                log::info!("on_reinject_last: inject succeeded");
+            }
+            Ok(InjectOutcome::ClipboardOnly { text_len }) => {
+                log::info!("on_reinject_last: clipboard-only ({text_len} chars)");
+                self.emit(TranscriptionState::ClipboardOnly { text_len });
+                let orch = Arc::clone(&self);
+                tokio::spawn(async move {
+                    tokio::time::sleep(Duration::from_millis(2500)).await;
+                    let s = orch.session.lock().await;
+                    if !s.recording && !s.locked {
+                        drop(s);
+                        orch.emit(TranscriptionState::Idle);
+                    }
+                });
+            }
+            Err(e) => {
+                log::warn!("reinject_last inject failed: {e}");
+            }
         }
     }
 
@@ -396,52 +412,77 @@ impl AppOrchestrator {
         }
 
         self.emit(TranscriptionState::Injecting);
-        if let Err(e) = TextInjector::inject(&text).await {
-            // Transcription succeeded but paste failed. The text is already
-            // captured, so "Reintentar" here just means re-inject via the
-            // existing reinject command — no need to preserve the WAV.
-            let msg = format!("inject failed: {e}");
-            self.persist(
-                engine_choice,
-                language,
-                duration_ms,
-                Some(result.latency_ms as i64),
-                Some(result.model.clone()),
-                &text,
-                "failed",
-                Some(&msg),
-                None,
-                source_app.clone(),
-            )
-            .await;
-            self.emit_error(msg).await;
-            return;
+        match TextInjector::inject(&text).await {
+            Ok(outcome) => {
+                // Persist success regardless of whether we pasted directly
+                // or left the text on the clipboard — the transcription
+                // itself succeeded in both cases.
+                self.persist(
+                    engine_choice,
+                    language,
+                    duration_ms,
+                    Some(result.latency_ms as i64),
+                    Some(result.model),
+                    &text,
+                    "success",
+                    None,
+                    None,
+                    source_app,
+                )
+                .await;
+
+                // If the user just crossed their monthly Groq budget for the
+                // first time this month, fire a system notification. Best-
+                // effort; any error here must not affect the happy path.
+                if matches!(engine_choice, Engine::Groq) {
+                    self.maybe_fire_cost_alert().await;
+                }
+
+                match outcome {
+                    InjectOutcome::Pasted => {
+                        self.emit(TranscriptionState::Idle);
+                    }
+                    InjectOutcome::ClipboardOnly { text_len } => {
+                        // Wayland fallback: text is on the clipboard. Surface a
+                        // toast and schedule auto-transition to Idle so the
+                        // overlay goes away after the user has had a chance to
+                        // paste.
+                        self.emit(TranscriptionState::ClipboardOnly { text_len });
+                        let orch = Arc::clone(&self);
+                        tokio::spawn(async move {
+                            tokio::time::sleep(Duration::from_millis(2500)).await;
+                            let s = orch.session.lock().await;
+                            if !s.recording && !s.locked {
+                                drop(s);
+                                orch.emit(TranscriptionState::Idle);
+                            }
+                        });
+                    }
+                }
+                self.reset_session().await;
+            }
+            Err(e) => {
+                // Transcription succeeded but paste failed. The text is
+                // already captured, so "Reintentar" here just means
+                // re-inject via the existing reinject command — no need to
+                // preserve the WAV.
+                let msg = format!("inject failed: {e}");
+                self.persist(
+                    engine_choice,
+                    language,
+                    duration_ms,
+                    Some(result.latency_ms as i64),
+                    Some(result.model.clone()),
+                    &text,
+                    "failed",
+                    Some(&msg),
+                    None,
+                    source_app.clone(),
+                )
+                .await;
+                self.emit_error(msg).await;
+            }
         }
-
-        // Happy path — save success.
-        self.persist(
-            engine_choice,
-            language,
-            duration_ms,
-            Some(result.latency_ms as i64),
-            Some(result.model),
-            &text,
-            "success",
-            None,
-            None,
-            source_app,
-        )
-        .await;
-
-        // If the user just crossed their monthly Groq budget for the first
-        // time this month, fire a system notification. Best-effort; any error
-        // here must not affect the happy path.
-        if matches!(engine_choice, Engine::Groq) {
-            self.maybe_fire_cost_alert().await;
-        }
-
-        self.emit(TranscriptionState::Idle);
-        self.reset_session().await;
     }
 
     async fn maybe_fire_cost_alert(&self) {

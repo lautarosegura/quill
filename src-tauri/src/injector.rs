@@ -1,22 +1,53 @@
 //! TextInjector — inserts text into the currently-focused app via clipboard
-//! paste. Saves and restores the user's previous clipboard.
+//! paste. On Windows/macOS/Linux-X11 we simulate Ctrl+V with `enigo` and
+//! restore the user's previous clipboard. On Linux-Wayland the security
+//! model forbids programmatic input injection, so we leave the text on the
+//! clipboard and let the user press Ctrl+V manually — the orchestrator
+//! emits a `ClipboardOnly` state the UI can surface as a toast.
 
 use std::time::Duration;
 
 use arboard::Clipboard;
 use enigo::{Direction, Enigo, Key, Keyboard, Settings};
 
+use crate::display_server::DisplayServer;
 use crate::error::QuillError;
 
 const POST_PASTE_SLEEP_MS: u64 = 80;
 const MAX_CLIPBOARD_BYTES: usize = 3 * 1024 * 1024;
 
+/// What happened after `inject` returned Ok. Distinguishes the normal
+/// "we simulated Ctrl+V" path from the Wayland "we left it on clipboard"
+/// fallback so the orchestrator can emit the right UI state.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum InjectOutcome {
+    Pasted,
+    ClipboardOnly { text_len: usize },
+}
+
 pub struct TextInjector;
 
 impl TextInjector {
-    pub async fn inject(text: &str) -> Result<(), QuillError> {
+    pub async fn inject(text: &str) -> Result<InjectOutcome, QuillError> {
         if text.is_empty() {
-            return Ok(());
+            return Ok(InjectOutcome::Pasted);
+        }
+
+        // Wayland path: `arboard` only holds the selection while its handle is
+        // alive — as soon as our function returns, another Wayland client (or
+        // nothing) takes ownership and the clipboard is empty. That would defeat
+        // the whole "press Ctrl+V to paste" affordance. Instead we detach a
+        // dedicated thread that blocks on `SetExtLinux::wait_until` for up to a
+        // minute, which keeps the selection valid until either the user pastes
+        // (another client claims ownership, wait returns) or the deadline hits.
+        //
+        // Check Wayland BEFORE constructing the sync Clipboard so we don't
+        // create and immediately drop one — which on some compositors still
+        // ships a transient selection we'd then immediately lose.
+        if DisplayServer::detect().is_wayland() {
+            let text_len = text.len();
+            wayland_clipboard_hold(text.to_string());
+            return Ok(InjectOutcome::ClipboardOnly { text_len });
         }
 
         let mut clipboard =
@@ -46,7 +77,7 @@ impl TextInjector {
             let _ = clipboard.clear();
         }
 
-        result
+        result.map(|_| InjectOutcome::Pasted)
     }
 }
 
@@ -94,4 +125,35 @@ fn simulate_paste() -> Result<(), QuillError> {
         .key(PASTE_MODIFIER, Direction::Release)
         .map_err(|e| QuillError::Injection(format!("release modifier: {e}")))?;
     Ok(())
+}
+
+/// Wayland helper — `arboard`'s Wayland backend only serves the clipboard
+/// while the handle is alive, so we spawn a detached thread that blocks
+/// on `SetExtLinux::wait_until` for up to `WAYLAND_CLIPBOARD_TTL`. `wait_*`
+/// returns early when another client takes selection ownership (i.e. the
+/// user hits Ctrl+V in the target app), so the thread also tears itself
+/// down on first paste.
+#[cfg(target_os = "linux")]
+fn wayland_clipboard_hold(text: String) {
+    use arboard::SetExtLinux;
+    use std::time::Instant;
+
+    const WAYLAND_CLIPBOARD_TTL: Duration = Duration::from_secs(60);
+
+    std::thread::spawn(move || match Clipboard::new() {
+        Ok(mut clipboard) => {
+            let deadline = Instant::now() + WAYLAND_CLIPBOARD_TTL;
+            if let Err(e) = clipboard.set().wait_until(deadline).text(text) {
+                log::warn!("wayland clipboard hold failed: {e}");
+            }
+        }
+        Err(e) => log::warn!("wayland clipboard init failed: {e}"),
+    });
+}
+
+#[cfg(not(target_os = "linux"))]
+fn wayland_clipboard_hold(_text: String) {
+    // Unreachable — `DisplayServer::detect().is_wayland()` is hard-coded
+    // false on non-Linux platforms. This stub exists so the call site in
+    // `inject` doesn't need a `cfg` guard.
 }

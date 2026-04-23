@@ -3,7 +3,7 @@
 	import Waveform from './Waveform.svelte';
 	import DotSpinner from './DotSpinner.svelte';
 
-	type State = 'recording' | 'transcribing' | 'error' | 'cancelled';
+	type State = 'recording' | 'transcribing' | 'error' | 'cancelled' | 'clipboard-only';
 
 	interface Props {
 		state: State;
@@ -17,7 +17,10 @@
 		transcribing: '#F59E0B',
 		error: '#F43F5E',
 		// Cancelled uses a muted gray so it reads as "neutral, not-an-error".
-		cancelled: 'oklch(0.55 0.01 260)'
+		cancelled: 'oklch(0.55 0.01 260)',
+		// ClipboardOnly is a success outcome on Wayland — use a friendly
+		// blue so it reads as "ready to paste" not "something went wrong".
+		'clipboard-only': '#3B82F6'
 	};
 
 	// Content transition: short crossfade when state changes so the icon/waveform
@@ -93,6 +96,35 @@
 			</span>
 			<span class="flex-1 truncate text-[14px] font-medium tracking-tight">
 				Transcripción cancelada
+			</span>
+		</div>
+	{:else if state === 'clipboard-only'}
+		<div
+			class="flex flex-1 items-center gap-2.5"
+			in:fade={{ duration: CROSSFADE_MS }}
+			out:fade={{ duration: CROSSFADE_MS }}
+		>
+			<span
+				class="flex h-[18px] w-[18px] shrink-0 items-center justify-center rounded-full"
+				style="background: oklch(1 0 0 / 0.12); color: {BORDER['clipboard-only']}"
+			>
+				<!-- Clipboard icon -->
+				<svg
+					width="11"
+					height="11"
+					viewBox="0 0 24 24"
+					fill="none"
+					stroke="currentColor"
+					stroke-width="2"
+					stroke-linecap="round"
+					stroke-linejoin="round"
+				>
+					<rect x="8" y="2" width="8" height="4" rx="1" />
+					<path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2" />
+				</svg>
+			</span>
+			<span class="flex-1 truncate text-[14px] font-medium tracking-tight">
+				Ctrl+V para pegar
 			</span>
 		</div>
 	{:else if state === 'error'}
