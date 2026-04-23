@@ -7,6 +7,64 @@ breaking changes between minor versions.
 
 ## [Unreleased]
 
+## [0.2.0] — 2026-04-23
+
+Linux support lands: both X11 and Wayland sessions, shipped as `.deb` and
+`.AppImage` installers alongside the existing Windows NSIS + MSI.
+
+### Added
+
+- **Linux X11**: full feature parity with Windows — push-to-talk via
+  `rdev::grab`, focused-window capture via `x11rb` (reading
+  `_NET_ACTIVE_WINDOW` + `_NET_WM_NAME`), clipboard paste via `enigo`.
+- **Linux Wayland**: global hotkey via the XDG Desktop Portal
+  (`org.freedesktop.portal.GlobalShortcuts`) using `ashpd`. Paste falls
+  back to clipboard-only mode — the text is placed on the clipboard and
+  a new `ClipboardOnly` transcription state surfaces a "press Ctrl+V to
+  paste" toast. A detached thread holds the selection alive for up to
+  60 s via `arboard::SetExtLinux::wait_until`.
+- **`get_display_server` Tauri command** and a new `platform.displayServer`
+  reactive field in the frontend, so components can render
+  Wayland-specific UX (hidden hotkey picker, compositor-aware hints).
+- **`docs/assets/banner.png`** — Claude-Design brand banner wired into the
+  README header.
+
+### Changed
+
+- **`HotkeyManager` split into backends** — `rdev_backend` (Win/mac/X11)
+  and `wayland_backend` (Wayland), selected at runtime. The orchestrator
+  and all its tests remain platform-agnostic.
+- **`tauri.conf.json` no longer carries a global `resources: ["*.dll"]`
+  glob** — per-platform configs `tauri.windows.conf.json` +
+  `tauri.linux.conf.json` are auto-merged by the Tauri CLI and declare
+  only the resources that actually exist on each OS. The CI
+  `ci-placeholder.dll` hack is retired.
+- **`scripts/download-whisper-cli.sh` now builds `whisper-cli` from source
+  on Linux** — whisper.cpp v1.7.6 ships no Linux binary. The script
+  clones the pinned tag, invokes cmake with `-DBUILD_SHARED_LIBS=OFF
+  -DGGML_NATIVE=OFF` (static + generic-CPU), and produces a
+  portable binary.
+- **README documents the supported-compositor matrix** (GNOME 48+ ✅,
+  KDE Plasma 6+ ✅, Hyprland ⚠️, Sway/wlroots ⚠️ clipboard-only).
+
+### Fixed
+
+- `TextInjector::inject` now returns `InjectOutcome` so callers can
+  distinguish a successful paste from a clipboard-only fallback.
+- `arboard` selection no longer evaporates when our function returns on
+  Wayland (was silently dropping the selection on handle drop).
+
+### Known limitations
+
+- Wayland paste is clipboard-only in v0.2. Seamless paste via
+  `ashpd::RemoteDesktop` + libei is planned for v0.3.
+- No focused-window tracking on Wayland. Architectural — there is no
+  portal for it and none is planned upstream.
+- Sway / wlroots compositors run in clipboard-only mode until
+  `xdg-desktop-portal-wlr` implements GlobalShortcuts (upstream
+  issue #240).
+- `.deb` and `.AppImage` are unsigned, same as Windows installers.
+
 ## [0.1.0] — 2026-04-23
 
 First public release for Windows. Feature-complete for single-user dictation;
@@ -50,5 +108,6 @@ macOS build will follow.
 - Vocabulary affects Whisper's decoder as a prompt; there's no
   post-transcription exact-match substitution yet.
 
-[Unreleased]: https://github.com/lautarosegura/quill/compare/v0.1.0...HEAD
+[Unreleased]: https://github.com/lautarosegura/quill/compare/v0.2.0...HEAD
+[0.2.0]: https://github.com/lautarosegura/quill/releases/tag/v0.2.0
 [0.1.0]: https://github.com/lautarosegura/quill/releases/tag/v0.1.0
