@@ -67,14 +67,14 @@ keyring = { version = "3.0", features = ["apple-native"] }
 
 [target.'cfg(target_os = "linux")'.dependencies]
 keyring = { version = "3.0", features = ["linux-native-sync-persistent", "crypto-rust"] }
-# XDG Desktop Portals (GlobalShortcuts + RemoteDesktop) for Wayland.
-# On X11 we still use rdev/enigo; these crates are compiled but inert.
-# Per-portal features are required: `tokio` alone won't expose the
-# `global_shortcuts` / `remote_desktop` modules.
-ashpd = { version = "0.13", default-features = false, features = ["tokio", "global_shortcuts", "remote_desktop"] }
-# libei bindings — used via ashpd::RemoteDesktop::connect_to_eis() to emit
-# Ctrl+V on Wayland once the user has granted RemoteDesktop consent.
-reis = { version = "0.6", features = ["tokio"] }
+# XDG GlobalShortcuts portal for Wayland. On X11 we still use rdev/enigo;
+# this crate is compiled but inert. The per-portal feature gating matters:
+# `tokio` alone doesn't expose `global_shortcuts`. `remote_desktop` is left
+# OFF for v0.2 because (a) we don't use it yet — Wayland paste is
+# clipboard-only for now — and (b) enabling it in ashpd 0.13.10 fails to
+# compile without also enabling `screencast`, a bug in upstream's feature
+# graph. Re-enable both in v0.3 when we wire up libei paste.
+ashpd = { version = "0.13", default-features = false, features = ["tokio", "global_shortcuts"] }
 # X11 client — reads _NET_ACTIVE_WINDOW / _NET_WM_NAME so Historial can show
 # "dictated into: <app>" on X11 sessions. No-op on Wayland (returns None).
 x11rb = "0.13"
