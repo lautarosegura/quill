@@ -6,7 +6,9 @@
         "depends": [
           "libwebkit2gtk-4.1-0",
           "libayatana-appindicator3-1",
-          "libasound2"
+          "libasound2",
+          "libxcb1",
+          "libwayland-client0"
         ]
       }
     }

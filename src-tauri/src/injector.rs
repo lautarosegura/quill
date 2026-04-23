@@ -10,6 +10,7 @@ use std::time::Duration;
 use arboard::Clipboard;
 use enigo::{Direction, Enigo, Key, Keyboard, Settings};
 
+#[allow(unused_imports)]
 use crate::display_server::DisplayServer;
 use crate::error::QuillError;
 
@@ -127,27 +128,33 @@ fn simulate_paste() -> Result<(), QuillError> {
     Ok(())
 }
 
-/// Wayland helper — `arboard`'s Wayland backend only serves the clipboard
-/// while the handle is alive, so we spawn a detached thread that blocks
-/// on `SetExtLinux::wait_until` for up to `WAYLAND_CLIPBOARD_TTL`. `wait_*`
-/// returns early when another client takes selection ownership (i.e. the
-/// user hits Ctrl+V in the target app), so the thread also tears itself
-/// down on first paste.
+/// Wayland helper — talks directly to the wl_data_device_manager protocol
+/// via `wl-clipboard-rs`. We can't use `arboard` here because on GNOME
+/// Wayland (the most common Wayland setup) both `$DISPLAY` and
+/// `$WAYLAND_DISPLAY` are set — arboard picks its X11 backend on sight of
+/// `$DISPLAY` and writes to the XWayland pseudo-selection, which is
+/// invisible to native Wayland apps when they Ctrl+V.
+///
+/// The thread blocks in `wl-clipboard-rs::copy` with `foreground=true` +
+/// `ServeRequests::Unlimited`. The function returns when another client
+/// takes selection ownership (the user pastes into the target, or copies
+/// something else from any app), which tears the thread down cleanly.
 #[cfg(target_os = "linux")]
 fn wayland_clipboard_hold(text: String) {
-    use arboard::SetExtLinux;
-    use std::time::Instant;
+    use wl_clipboard_rs::copy::{MimeType, Options, ServeRequests, Source};
 
-    const WAYLAND_CLIPBOARD_TTL: Duration = Duration::from_secs(60);
-
-    std::thread::spawn(move || match Clipboard::new() {
-        Ok(mut clipboard) => {
-            let deadline = Instant::now() + WAYLAND_CLIPBOARD_TTL;
-            if let Err(e) = clipboard.set().wait_until(deadline).text(text) {
-                log::warn!("wayland clipboard hold failed: {e}");
-            }
+    std::thread::spawn(move || {
+        let mut opts = Options::new();
+        // foreground(true) keeps the wayland connection alive in THIS
+        // thread — no fork(), which would interact badly with Tauri's
+        // multi-threaded process.
+        opts.foreground(true);
+        opts.serve_requests(ServeRequests::Unlimited);
+        let source = Source::Bytes(text.into_bytes().into_boxed_slice());
+        match opts.copy(source, MimeType::Text) {
+            Ok(()) => log::info!("wayland clipboard: selection served until replaced"),
+            Err(e) => log::warn!("wayland clipboard copy failed: {e}"),
         }
-        Err(e) => log::warn!("wayland clipboard init failed: {e}"),
     });
 }
 

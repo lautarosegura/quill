@@ -78,6 +78,11 @@ ashpd = { version = "0.13", default-features = false, features = ["tokio", "glob
 # X11 client — reads _NET_ACTIVE_WINDOW / _NET_WM_NAME so Historial can show
 # "dictated into: <app>" on X11 sessions. No-op on Wayland (returns None).
 x11rb = "0.13"
+# Wayland clipboard backend. `arboard` auto-detects `$DISPLAY` (set by
+# XWayland on GNOME Wayland) and picks the X11 backend, which writes to
+# XWayland's selection — invisible to native Wayland apps when they Ctrl+V.
+# We use wl-clipboard-rs directly on Wayland to force the native path.
+wl-clipboard-rs = "0.9"
 
 [dev-dependencies]
 tempfile = "3.10"

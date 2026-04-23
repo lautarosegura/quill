@@ -41,10 +41,13 @@ async fn run(tx: mpsc::UnboundedSender<HotkeyEvent>) -> ashpd::Result<()> {
     use ashpd::desktop::global_shortcuts::{BindShortcutsOptions, GlobalShortcuts, NewShortcut};
     use ashpd::desktop::CreateSessionOptions;
 
+    log::info!("wayland_backend: connecting to GlobalShortcuts portal");
     let proxy = GlobalShortcuts::new().await?;
+    log::info!("wayland_backend: portal proxy acquired, creating session");
     let session = proxy
         .create_session(CreateSessionOptions::default())
         .await?;
+    log::info!("wayland_backend: session created, binding shortcuts");
 
     let shortcuts = [
         NewShortcut::new(PTT_ID, "Dictate with Quill (hold to record)"),
@@ -53,13 +56,20 @@ async fn run(tx: mpsc::UnboundedSender<HotkeyEvent>) -> ashpd::Result<()> {
     ];
     // `identifier: None` means no parent window — we register the shortcuts
     // at app scope rather than tying them to a specific toplevel. The
-    // compositor will show its own system dialog for approval.
+    // compositor will show its own system dialog for approval on first bind.
     proxy
         .bind_shortcuts(&session, &shortcuts, None, BindShortcutsOptions::default())
         .await?;
+    log::info!(
+        "wayland_backend: bind_shortcuts returned OK for ids {:?}",
+        [PTT_ID, REPASTE_ID, CANCEL_ID]
+    );
 
     let mut activated = proxy.receive_activated().await?;
     let mut deactivated = proxy.receive_deactivated().await?;
+    log::info!(
+        "wayland_backend: subscribed to Activated + Deactivated streams, entering event loop"
+    );
 
     let mut pressed_at: Option<Instant> = None;
 
@@ -67,12 +77,10 @@ async fn run(tx: mpsc::UnboundedSender<HotkeyEvent>) -> ashpd::Result<()> {
         tokio::select! {
             Some(activation) = activated.next() => {
                 let id = activation.shortcut_id().to_string();
+                log::info!("wayland_backend: Activated signal id={id}");
                 match id.as_str() {
                     PTT_ID => {
                         pressed_at = Some(Instant::now());
-                        // source_app is always None on Wayland — the
-                        // compositor intentionally doesn't expose which app
-                        // is focused to third-party clients.
                         let _ = tx.send(HotkeyEvent::Pressed { source_app: None });
                     }
                     REPASTE_ID => {
@@ -88,6 +96,7 @@ async fn run(tx: mpsc::UnboundedSender<HotkeyEvent>) -> ashpd::Result<()> {
             }
             Some(deactivation) = deactivated.next() => {
                 let id = deactivation.shortcut_id().to_string();
+                log::info!("wayland_backend: Deactivated signal id={id}");
                 if id == PTT_ID {
                     let held_ms = pressed_at
                         .take()
@@ -96,7 +105,10 @@ async fn run(tx: mpsc::UnboundedSender<HotkeyEvent>) -> ashpd::Result<()> {
                     let _ = tx.send(HotkeyEvent::Released { held_ms });
                 }
             }
-            else => break,
+            else => {
+                log::warn!("wayland_backend: both signal streams closed, exiting loop");
+                break;
+            }
         }
     }
 
