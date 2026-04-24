@@ -23,6 +23,8 @@ pub mod secrets;
 pub mod tray;
 pub mod types;
 pub mod usage;
+#[cfg(target_os = "linux")]
+pub mod wayland_paste;
 
 use std::path::PathBuf;
 use std::sync::Arc;

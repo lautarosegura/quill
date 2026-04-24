@@ -144,6 +144,7 @@ dependencies = [
  "futures-util",
  "getrandom 0.4.2",
  "serde",
+ "serde_repr",
  "tokio",
  "zbus 5.14.0",
 ]
@@ -607,6 +608,19 @@ dependencies = [
  "glib-sys",
  "libc",
  "system-deps",
+]
+
+[[package]]
+name = "calloop"
+version = "0.14.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "4dbf9978365bac10f54d1d4b04f7ce4427e51f71d61f2fe15e3fed5166474df7"
+dependencies = [
+ "bitflags 2.11.1",
+ "polling",
+ "rustix",
+ "slab",
+ "tracing",
 ]
 
 [[package]]
@@ -4169,10 +4183,12 @@ dependencies = [
  "arboard",
  "ashpd",
  "async-trait",
+ "calloop",
  "chrono",
  "cpal",
  "dirs 5.0.1",
  "enigo",
+ "enumflags2",
  "futures-util",
  "hex",
  "hound",
@@ -4180,6 +4196,7 @@ dependencies = [
  "log",
  "parking_lot",
  "rdev",
+ "reis",
  "reqwest 0.12.28",
  "rodio",
  "rusqlite",
@@ -4520,6 +4537,17 @@ name = "regex-syntax"
 version = "0.8.10"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "dc897dd8d9e8bd1ed8cdad82b5966c3e0ecae09fb1907d58efaa013543185d0a"
+
+[[package]]
+name = "reis"
+version = "0.6.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "2aee09758db35e73eb1398c6ef321973ce7f4aad86573ba08c1c8ef98d350b46"
+dependencies = [
+ "enumflags2",
+ "log",
+ "rustix",
+]
 
 [[package]]
 name = "rend"
@@ -6222,6 +6250,7 @@ version = "0.1.44"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "63e71662fa4b2a2c3a26f570f037eb95bb1f85397f3cd8076caed2f026a6d100"
 dependencies = [
+ "log",
  "pin-project-lite",
  "tracing-attributes",
  "tracing-core",
