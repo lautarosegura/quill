@@ -100,8 +100,8 @@ async fn setup_session(
     let mut select_opts = SelectDevicesOptions::default()
         .set_devices(BitFlags::from(DeviceType::Keyboard))
         .set_persist_mode(PersistMode::ExplicitlyRevoked);
-    if let Some(token) = prior_token {
-        select_opts = select_opts.set_restore_token(token);
+    if let Some(token) = prior_token.as_ref() {
+        select_opts = select_opts.set_restore_token(Some(token.as_str()));
     }
     proxy
         .select_devices(&session, select_opts)
