@@ -7,6 +7,55 @@ breaking changes between minor versions.
 
 ## [Unreleased]
 
+## [0.2.1] — 2026-04-24
+
+Linux bug-fix release from first real-world testing of the v0.2.0 `.deb`
+on Wayland. Several paths were silently broken; v0.2.1 closes the most
+important ones.
+
+### Fixed
+
+- **Wizard now persists `wizard_version=1` on finish** — the `finish_wizard`
+  Tauri command writes the marker directly, idempotently. Works even if
+  the frontend's `applyDraftToRuntime` racing / stale-config-store path
+  silently dropped the write (which it did on GNOME Wayland in v0.2.0).
+- **Wayland clipboard was empty after dictation** (even manual Ctrl+V
+  pasted nothing). Root cause: `arboard` auto-picks its X11 backend
+  when `$DISPLAY` is set, which is always the case on GNOME Wayland
+  (XWayland), so we were writing to the wrong selection. Fix: talk to
+  the Wayland compositor directly via `wl-clipboard-rs`, held alive by
+  a detached thread with `ServeRequests::Unlimited` until another
+  client takes selection ownership.
+
+### Added
+
+- **Auto-paste on Wayland via libei** (XDG `RemoteDesktop` portal +
+  `reis`). After transcription Quill synthesizes Ctrl+V itself — same UX
+  as Windows/X11, no more "press Ctrl+V to paste" toast. First paste
+  triggers a one-time RemoteDesktop consent dialog on GNOME/KDE; restore
+  token is cached in-process so subsequent pastes are silent. Falls
+  back to clipboard-only if the portal is denied or unavailable.
+- **Dual Wayland hotkey backend** — XDG `GlobalShortcuts` portal
+  primary, `rdev::listen` via `/dev/input/event*` as a fallback. Covers
+  compositors without the portal (GNOME 46/47, Sway, wlroots, older
+  Hyprland). Requires the user to be in the `input` group for the
+  fallback; documented in the README compatibility table.
+- **Dense logging in `wayland_backend::run`** — each portal stage
+  (proxy connect, session create, bind_shortcuts, stream subscribe)
+  and each `Activated`/`Deactivated` signal now logs at INFO, so
+  debugging hotkey timing on different compositors is straightforward.
+- **`libxcb1`, `libwayland-client0`, `libxdo3`** added to `.deb`
+  depends. `libxdo3` was the specific runtime library missing on v0.2.0
+  installs (enigo links against it for the X11 paste path).
+
+### Known limitations (carried over)
+
+- Wayland auto-paste consent token isn't persisted to disk yet — the
+  first paste of each app launch still prompts. v0.3 fixes this by
+  saving the restore_token in Config.
+- `libayatana-appindicator` prints a "deprecated" warning on stderr.
+  Cosmetic; waiting on Tauri upstream to migrate to `-glib-1`.
+
 ## [0.2.0] — 2026-04-23
 
 Linux support lands: both X11 and Wayland sessions, shipped as `.deb` and
@@ -108,6 +157,7 @@ macOS build will follow.
 - Vocabulary affects Whisper's decoder as a prompt; there's no
   post-transcription exact-match substitution yet.
 
-[Unreleased]: https://github.com/lautarosegura/quill/compare/v0.2.0...HEAD
+[Unreleased]: https://github.com/lautarosegura/quill/compare/v0.2.1...HEAD
+[0.2.1]: https://github.com/lautarosegura/quill/releases/tag/v0.2.1
 [0.2.0]: https://github.com/lautarosegura/quill/releases/tag/v0.2.0
 [0.1.0]: https://github.com/lautarosegura/quill/releases/tag/v0.1.0
