@@ -34,21 +34,44 @@ impl TextInjector {
             return Ok(InjectOutcome::Pasted);
         }
 
-        // Wayland path: `arboard` only holds the selection while its handle is
-        // alive — as soon as our function returns, another Wayland client (or
-        // nothing) takes ownership and the clipboard is empty. That would defeat
-        // the whole "press Ctrl+V to paste" affordance. Instead we detach a
-        // dedicated thread that blocks on `SetExtLinux::wait_until` for up to a
-        // minute, which keeps the selection valid until either the user pastes
-        // (another client claims ownership, wait returns) or the deadline hits.
-        //
-        // Check Wayland BEFORE constructing the sync Clipboard so we don't
-        // create and immediately drop one — which on some compositors still
-        // ships a transient selection we'd then immediately lose.
+        // Wayland path. Two-stage:
+        //   1. Put the text on the clipboard via wl-clipboard-rs (talks
+        //      directly to the compositor's data_device_manager — arboard
+        //      can't be trusted here because on GNOME Wayland `$DISPLAY` is
+        //      also set and arboard auto-picks its X11 backend).
+        //   2. Synthesize Ctrl+V via the XDG RemoteDesktop portal + libei
+        //      so the focused app pastes without the user lifting a finger.
+        // If step 2 fails (compositor without portal support, user denies
+        // the consent dialog, libei timeout, etc.) we fall back to the
+        // clipboard-only UX — the selection is still live so the user can
+        // press Ctrl+V manually.
         if DisplayServer::detect().is_wayland() {
             let text_len = text.len();
             wayland_clipboard_hold(text.to_string());
-            return Ok(InjectOutcome::ClipboardOnly { text_len });
+            // Give the compositor a moment to register the clipboard
+            // selection before we ask it to emit a paste keystroke.
+            tokio::time::sleep(Duration::from_millis(120)).await;
+
+            #[cfg(target_os = "linux")]
+            {
+                match crate::wayland_paste::paste_ctrl_v().await {
+                    Ok(()) => {
+                        log::info!("wayland: auto-paste via libei succeeded");
+                        return Ok(InjectOutcome::Pasted);
+                    }
+                    Err(e) => {
+                        log::warn!(
+                            "wayland auto-paste failed, falling back to clipboard-only: {e}. \
+                             User will need to press Ctrl+V manually."
+                        );
+                        return Ok(InjectOutcome::ClipboardOnly { text_len });
+                    }
+                }
+            }
+            #[cfg(not(target_os = "linux"))]
+            {
+                return Ok(InjectOutcome::ClipboardOnly { text_len });
+            }
         }
 
         let mut clipboard =
