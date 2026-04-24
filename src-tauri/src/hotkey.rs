@@ -48,18 +48,24 @@ pub enum HotkeyEvent {
     ReinjectLast,
 }
 
-/// Keeps the listener alive for the app lifetime. rdev's native thread has
-/// no clean stop; the Wayland task stops when the D-Bus proxy is dropped.
-/// Holding the handle prevents premature cleanup.
+/// Keeps all listener handles alive for the app lifetime. rdev's native
+/// thread has no clean stop; the Wayland task stops when the D-Bus proxy
+/// is dropped. Holding the handles prevents premature cleanup.
+///
+/// On Wayland we intentionally hold BOTH the portal task and an rdev
+/// evdev-listen thread: whichever of them actually picks up events feeds
+/// the shared channel. The orchestrator's own "if s.recording return"
+/// guard deduplicates the rare case where both sources fire for the
+/// same key sequence.
 pub struct HotkeyManager {
-    _inner: Inner,
+    _handles: Vec<Handle>,
 }
 
-#[allow(dead_code)] // variants are cfg-dependent; the unused one drops out per target
-enum Inner {
-    Rdev(std::thread::JoinHandle<()>),
+#[allow(dead_code)] // variants are cfg-dependent
+enum Handle {
+    Thread(std::thread::JoinHandle<()>),
     #[cfg(target_os = "linux")]
-    WaylandPortal(tokio::task::JoinHandle<()>),
+    Task(tokio::task::JoinHandle<()>),
 }
 
 impl HotkeyManager {
@@ -69,11 +75,15 @@ impl HotkeyManager {
         #[cfg(target_os = "linux")]
         {
             if DisplayServer::detect().is_wayland() {
-                log::info!("hotkey: using Wayland XDG GlobalShortcuts backend");
-                let task = wayland_backend::start(tx);
+                log::info!(
+                    "hotkey: Wayland session — starting dual backend (XDG \
+                     GlobalShortcuts portal + rdev evdev listen fallback)"
+                );
+                let portal = wayland_backend::start(tx.clone());
+                let evdev = rdev_backend::start_listen(Arc::clone(&config), tx);
                 return (
                     Self {
-                        _inner: Inner::WaylandPortal(task),
+                        _handles: vec![Handle::Task(portal), Handle::Thread(evdev)],
                     },
                     rx,
                 );
@@ -84,7 +94,7 @@ impl HotkeyManager {
         let thread = rdev_backend::start(config, tx);
         (
             Self {
-                _inner: Inner::Rdev(thread),
+                _handles: vec![Handle::Thread(thread)],
             },
             rx,
         )

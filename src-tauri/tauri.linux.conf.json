@@ -8,7 +8,8 @@
           "libayatana-appindicator3-1",
           "libasound2",
           "libxcb1",
-          "libwayland-client0"
+          "libwayland-client0",
+          "libxdo3"
         ]
       }
     }

@@ -1,6 +1,15 @@
-//! rdev-based global-key listener. Used on Windows, macOS, and Linux under
-//! X11. Wayland denies `rdev::grab` at the OS level, so the `hotkey`
-//! module routes Wayland sessions through the XDG portal backend instead.
+//! rdev-based global-key listener. Two entry points:
+//!
+//! - [`start`] — uses `rdev::grab`, which suppresses events as they pass
+//!   through the OS. Used on Windows, macOS, and Linux-X11 (the compositors
+//!   that actually let regular apps do this).
+//! - [`start_listen`] — uses `rdev::listen`, which observes events without
+//!   suppressing them. The Wayland fallback path: it reads raw kernel
+//!   events from `/dev/input/event*` so the hotkey still fires on
+//!   compositors without the XDG `GlobalShortcuts` portal (GNOME <48,
+//!   Sway, wlroots, Hyprland pre-portal). Requires the user to be in the
+//!   `input` group — if they aren't, installation silently fails and the
+//!   portal backend remains the only source.
 //!
 //! Uses `rdev::grab` (not `listen`) so we can *suppress* events as they flow
 //! through the OS. That matters for two cases:
@@ -26,7 +35,7 @@ use std::sync::{Arc, Mutex};
 use std::thread;
 use std::time::Instant;
 
-use rdev::{grab, Event, EventType, Key};
+use rdev::{grab, listen, Event, EventType, Key};
 use tokio::sync::{mpsc, RwLock};
 
 use super::HotkeyEvent;
@@ -51,6 +60,42 @@ pub fn start(
         };
         if let Err(e) = grab(cb) {
             log::error!("rdev::grab failed to install or crashed: {e:?}");
+        }
+    })
+}
+
+/// Wayland fallback: `rdev::listen` reads `/dev/input/event*` directly, so
+/// the hotkey works on compositors that don't implement the XDG portal
+/// (GNOME <48, Sway, wlroots). Cannot suppress — any non-modifier trigger
+/// key also reaches the focused app, so users of trigger-based chords see
+/// a stray character. Document this limitation; users on evdev-only
+/// Wayland can switch to a modifier-only chord in Settings.
+///
+/// Fails to install on most Linux setups by default: `/dev/input/event*`
+/// needs read permission, which is `input` group membership on Ubuntu.
+/// We log a warning and exit the thread — the portal backend continues
+/// running in parallel and may still pick up the key.
+#[allow(dead_code)] // used only from hotkey::HotkeyManager::start on Wayland
+pub fn start_listen(
+    config: Arc<RwLock<Config>>,
+    tx: mpsc::UnboundedSender<HotkeyEvent>,
+) -> thread::JoinHandle<()> {
+    let state = Arc::new(Mutex::new(HotkeyState::default()));
+    thread::spawn(move || {
+        let cb = move |event: Event| {
+            let hotkey = config.blocking_read().hotkey.clone();
+            // `handle_event` returns Option<Event> for grab's suppression
+            // model; listen ignores the return value entirely — we can't
+            // suppress with this backend anyway.
+            let _ = handle_event(event, &hotkey, &state, &tx);
+        };
+        if let Err(e) = listen(cb) {
+            log::warn!(
+                "rdev::listen (Wayland evdev fallback) failed: {e:?}. Likely \
+                 the user is not in the `input` group — run `sudo usermod \
+                 -aG input $USER` and log out/in to enable. The portal \
+                 backend (if present) continues as the only hotkey source."
+            );
         }
     })
 }

@@ -35,12 +35,13 @@ Same first-launch wizard as on Windows.
 | Session | Status | Notes |
 |---|---|---|
 | X11 (any desktop environment) | ✅ Full parity | Same push-to-talk, paste, and focused-window tracking as Windows |
-| Wayland / GNOME 48+ | ✅ Works | First hotkey bind prompts for approval via GNOME Settings |
-| Wayland / KDE Plasma 6+ | ✅ Works | KWin prompts on first bind |
-| Wayland / Hyprland | ⚠️ Partial | You must set the shortcut in `hyprland.conf` manually |
-| Wayland / Sway, wlroots | ⚠️ Clipboard-only mode | Compositor doesn't implement the GlobalShortcuts portal yet — the tray menu still works |
+| Wayland / GNOME 48+ | ✅ Works | First hotkey bind prompts for approval via GNOME Settings; first auto-paste prompts for RemoteDesktop consent |
+| Wayland / KDE Plasma 6+ | ✅ Works | KWin prompts on first bind / consent |
+| Wayland / GNOME 46, 47 (Ubuntu 24.04 / 24.10) | ⚠️ Needs `input` group | GNOME pre-48 lacks the GlobalShortcuts portal — Quill falls back to reading raw kernel input events. Add yourself to the `input` group: `sudo usermod -aG input $USER` and log out + back in |
+| Wayland / Hyprland | ⚠️ Needs `input` group OR `hyprland.conf` binding | Either use the evdev fallback (same `input` group setup), or configure the shortcut manually in `hyprland.conf` |
+| Wayland / Sway, wlroots | ⚠️ Needs `input` group | Compositor doesn't implement the GlobalShortcuts portal yet — evdev fallback is the only path. Same `input` group setup |
 
-On Wayland the paste step falls back to the clipboard in this first release — after a successful transcription the text is copied and a toast tells you to press **Ctrl+V**. Full portal-driven paste via libei is planned for v0.3.
+Auto-paste on Wayland works via the XDG RemoteDesktop portal + libei. The first time you dictate on a Wayland session, the compositor asks permission to emulate keyboard input — approve once and subsequent pastes are silent. If the portal is unavailable or you deny the dialog, Quill falls back to clipboard-only mode (transcription lands on the clipboard and a pill tells you to press **Ctrl+V**).
 
 That's it. The app launches minimized to the tray; hit your hotkey in any window to dictate.
 
