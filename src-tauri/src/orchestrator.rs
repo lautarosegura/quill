@@ -403,7 +403,10 @@ impl AppOrchestrator {
             }
         };
 
-        let text = post_process::clean(&result.text);
+        // Snapshot substitutions once per call so a Settings change
+        // mid-transcribe doesn't half-apply.
+        let substitutions = self.config.read().await.substitutions.clone();
+        let text = post_process::substitute(&post_process::clean(&result.text), &substitutions);
 
         if text.is_empty() {
             self.emit(TranscriptionState::Idle);

@@ -85,5 +85,24 @@ impl Keybind {
     }
 }
 
+/// Post-transcription exact-match replacement. Vocabulary as a Whisper
+/// prompt biases the decoder but doesn't always overcome the model's
+/// stronger priors — `from` ends up transcribed wrong consistently. A
+/// substitution catches those persistent errors with a regex
+/// word-boundary replace AFTER the transcription comes back.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct Substitution {
+    /// Pattern to find in the transcription. Wrapped in `\b...\b` (word
+    /// boundaries) at apply time so e.g. "ai" doesn't replace inside
+    /// "rain". Special regex chars are escaped automatically.
+    pub from: String,
+    /// Replacement string. Inserted verbatim — no regex backrefs.
+    pub to: String,
+    /// Case-sensitive matching. Default false (i.e. "Mokia" / "mokia"
+    /// both match a `from = "mokia"` rule).
+    #[serde(default)]
+    pub case_sensitive: bool,
+}
+
 #[cfg(test)]
 mod tests;

@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import { config } from '$lib/stores/config.svelte';
+	import type { Substitution } from '$lib/types';
 
 	onMount(() => {
 		if (!config.value) config.load();
@@ -14,6 +15,26 @@
 		if (charCount > MAX_CHARS - 100) return 'oklch(0.78 0.14 75)';
 		return 'var(--text-dim)';
 	});
+
+	// --- Substitutions ---
+
+	const subs = $derived(config.value?.substitutions ?? []);
+
+	function updateSubs(next: Substitution[]) {
+		config.set('substitutions', next);
+	}
+
+	function addSub() {
+		updateSubs([...subs, { from: '', to: '', case_sensitive: false }]);
+	}
+
+	function removeSub(i: number) {
+		updateSubs(subs.filter((_, idx) => idx !== i));
+	}
+
+	function updateSubField<K extends keyof Substitution>(i: number, key: K, value: Substitution[K]) {
+		updateSubs(subs.map((s, idx) => (idx === i ? { ...s, [key]: value } : s)));
+	}
 </script>
 
 <div class="mx-auto max-w-[720px] p-8">
@@ -56,6 +77,103 @@
 			>
 			→ <span class="font-mono">"Quill"</span>. El cambio se guarda automáticamente y aplica a la
 			próxima dictación (sin reiniciar).
+		</p>
+	</div>
+
+	<!-- ========== Substitutions ========== -->
+	<h2 class="text-base-strong mt-10 text-[16px] font-semibold tracking-tight">Sustituciones</h2>
+	<p class="text-base-dim mt-1 text-[13px]">
+		Reemplazo exacto post-transcripción. Útil para errores que el vocabulario no logra evitar — Whisper
+		se obstina en escribir <span class="font-mono">"Mokia"</span> y vos querés <span class="font-mono">"Nokia"</span>.
+	</p>
+
+	<div class="border-hair bg-panel mt-4 overflow-hidden rounded-lg border">
+		{#if subs.length === 0}
+			<div class="p-6 text-center">
+				<p class="text-base-mute text-[12.5px]">
+					Sin sustituciones aún. Agregá una para empezar.
+				</p>
+			</div>
+		{:else}
+			<table class="w-full text-[12.5px]">
+				<thead class="border-hair bg-elev border-b">
+					<tr>
+						<th class="text-base-dim px-3 py-2 text-left text-[11px] font-medium uppercase tracking-wider">
+							Reemplazar
+						</th>
+						<th class="text-base-dim px-3 py-2 text-left text-[11px] font-medium uppercase tracking-wider">
+							Por
+						</th>
+						<th class="text-base-dim px-3 py-2 text-left text-[11px] font-medium uppercase tracking-wider">
+							Aa
+						</th>
+						<th class="w-10"></th>
+					</tr>
+				</thead>
+				<tbody>
+					{#each subs as s, i (i)}
+						<tr class="border-hair border-b last:border-b-0">
+							<td class="px-2 py-1">
+								<input
+									type="text"
+									class="bg-elev border-hair text-base-strong w-full rounded-md border px-2 py-1.5 font-mono focus:outline-none"
+									placeholder="Mokia"
+									value={s.from}
+									oninput={(e) => updateSubField(i, 'from', e.currentTarget.value)}
+								/>
+							</td>
+							<td class="px-2 py-1">
+								<input
+									type="text"
+									class="bg-elev border-hair text-base-strong w-full rounded-md border px-2 py-1.5 font-mono focus:outline-none"
+									placeholder="Nokia"
+									value={s.to}
+									oninput={(e) => updateSubField(i, 'to', e.currentTarget.value)}
+								/>
+							</td>
+							<td class="px-3 py-1 text-center">
+								<input
+									type="checkbox"
+									checked={s.case_sensitive}
+									onchange={(e) => updateSubField(i, 'case_sensitive', e.currentTarget.checked)}
+									title="Sensible a mayúsculas"
+									aria-label="Sensible a mayúsculas"
+								/>
+							</td>
+							<td class="px-1 py-1 text-center">
+								<button
+									type="button"
+									class="text-base-mute hover:text-base-strong rounded px-2 py-1 text-[14px] transition-colors"
+									onclick={() => removeSub(i)}
+									title="Eliminar"
+									aria-label="Eliminar"
+								>
+									×
+								</button>
+							</td>
+						</tr>
+					{/each}
+				</tbody>
+			</table>
+		{/if}
+
+		<div class="border-hair flex items-center justify-end border-t p-2">
+			<button
+				type="button"
+				class="text-base-dim hover:text-base-strong rounded px-3 py-1.5 text-[12px] transition-colors"
+				onclick={addSub}
+			>
+				+ Agregar
+			</button>
+		</div>
+	</div>
+
+	<div class="border-hair bg-panel mt-4 rounded-lg border p-4">
+		<div class="text-base-strong text-[12px] font-semibold">Cómo funciona</div>
+		<p class="text-base-dim mt-2 text-[12px] leading-relaxed">
+			Después de cada transcripción, Quill aplica estas reglas con <span class="font-mono">word boundaries</span>
+			— "Mokia" se reemplaza pero "Mokian" no. Marcá <span class="font-mono">Aa</span> si necesitás que
+			distinga mayúsculas / minúsculas (por defecto no las distingue).
 		</p>
 	</div>
 </div>

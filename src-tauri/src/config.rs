@@ -2,7 +2,7 @@ use serde::{Deserialize, Serialize};
 use std::path::Path;
 
 use crate::error::Result;
-use crate::types::{Engine, Keybind, Language, OverlayPosition};
+use crate::types::{Engine, Keybind, Language, OverlayPosition, Substitution};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Config {
@@ -33,6 +33,11 @@ pub struct Config {
     /// Advanced for the rare user who needs to disable it.
     #[serde(default = "default_vad_enabled")]
     pub vad_enabled: bool,
+    /// Post-transcription exact-match replacements. Applied AFTER
+    /// `post_process::clean` so they catch errors that the Whisper
+    /// prompt-biasing in `vocabulary` couldn't fix.
+    #[serde(default)]
+    pub substitutions: Vec<Substitution>,
 }
 
 fn default_vad_enabled() -> bool {
@@ -59,6 +64,7 @@ impl Default for Config {
             wizard_version: 0,
             wayland_remotedesktop_token: None,
             vad_enabled: default_vad_enabled(),
+            substitutions: Vec::new(),
         }
     }
 }
