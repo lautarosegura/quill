@@ -41,16 +41,25 @@ so existing users feel an immediate quality bump without any setup.
   without opening the app. Click any preset name to set it as active.
   Built once at app startup; user-created presets added at runtime
   appear after restart (dynamic rebuilding is queued for v0.3.x).
-- **New `/main/presets` page** — master/detail UI for preset management
-  (list with radio-button activation on the left, name + prompt
-  editor on the right). Sidebar nav has a new "Presets" entry that
-  reuses the Vocabulario icon as a temporary placeholder pending the
-  Claude Design redesign pass.
+- **New `/main/presets` page** — polished master/detail UI for preset
+  management. Master list (280 px) on the left with custom radio-button
+  activation, "Sin preset" pseudo-row, and a divider between built-ins
+  and custom presets; editor on the right with name + prompt + active
+  toggle + delete. Custom radio (`.pradio`) supports independent select
+  vs activate semantics — clicking a row body selects it for editing,
+  clicking the radio activates it.
+- **Polished Sustituciones table** on the Vocabulario page — grid-based
+  inline-editable rows, "Aa" pill toggle for case sensitivity in
+  explicit on/off variants, hover-revealed row delete with red-tinted
+  hover, accent-CTA empty state. Generated from the Claude Design
+  v0.3.0 bundle.
+- **`IconPresets` SVG** — stack-of-cards 16×16 Lucide-style sidebar
+  glyph for the new Presets nav entry. Replaces the Vocabulario icon
+  used as a placeholder in earlier RCs.
 - **`docs/claude-design-brief-v0.3.0.md`** — handoff document listing
   every new UI surface in v0.3.0 with functional spec + current Svelte
-  source for context. Used to commission a Claude Design redesign of
-  the substitutions table and presets master/detail before the next
-  release.
+  source for context. Drove the Claude Design redesign of the
+  substitutions table, presets master/detail, and the sidebar icon.
 
 ### Changed
 
@@ -75,8 +84,6 @@ becomes the entire prompt.
 - Tray submenu doesn't auto-refresh when the user creates a new preset
   via the Settings page; restart picks it up.
 - No UI for VAD toggle; edit `~/.quill/config.json` directly to disable.
-- New components ship with minimal styling — Claude Design redesign
-  pending (see `docs/claude-design-brief-v0.3.0.md`).
 
 ## [0.2.2] — 2026-04-24
 
