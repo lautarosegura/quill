@@ -58,10 +58,18 @@ const KEY_V: u32 = 47;
 /// well under a second; this just guards against a hung portal dialog.
 const PASTE_TIMEOUT: Duration = Duration::from_secs(8);
 
-/// Process-wide cache of the RemoteDesktop session restore token. The
-/// first successful `start()` populates this; subsequent calls pass it
-/// back to `select_devices` so the compositor recognises us as
-/// already-approved and skips the consent dialog.
+/// Process-wide cache of the RemoteDesktop session restore token.
+///
+/// Lifecycle:
+/// 1. App starts → cache is empty.
+/// 2. First `paste_ctrl_v` call → if cache is None we hydrate from disk
+///    (`Config::wayland_remotedesktop_token`), so a token issued on a
+///    previous launch survives a restart.
+/// 3. Successful `start()` returns a (possibly new) token → we update
+///    the cache AND persist to disk via `ConfigStore::save`.
+/// 4. The token stays in `~/.quill/config.json` until either GNOME
+///    revokes it (user removed Quill from Settings → Apps → Permissions)
+///    or the user resets the config.
 static RESTORE_TOKEN: Mutex<Option<String>> = Mutex::new(None);
 
 /// Synthesize Ctrl+V in the focused application. Assumes the clipboard
@@ -69,10 +77,14 @@ static RESTORE_TOKEN: Mutex<Option<String>> = Mutex::new(None);
 /// all failure paths return `Err`, and the caller is expected to fall
 /// back to clipboard-only UX (user presses Ctrl+V themselves).
 pub async fn paste_ctrl_v() -> Result<(), QuillError> {
+    // First call of the process: warm the cache from disk so a token
+    // issued on a previous launch is reused (no consent dialog).
+    hydrate_token_from_disk_once();
+
     let prior_token = RESTORE_TOKEN.lock().unwrap().clone();
     let (fd, new_token) = setup_session(prior_token).await?;
     if let Some(t) = new_token {
-        *RESTORE_TOKEN.lock().unwrap() = Some(t);
+        update_token_cache_and_disk(t);
     }
     // The libei protocol loop is synchronous calloop — run it on a
     // tokio blocking thread so we don't freeze the async runtime while
@@ -81,6 +93,53 @@ pub async fn paste_ctrl_v() -> Result<(), QuillError> {
         .await
         .map_err(|e| QuillError::Injection(format!("libei task join: {e}")))??;
     Ok(())
+}
+
+/// Idempotent: if the in-process cache is empty, try to load the token
+/// from `~/.quill/config.json`. Best-effort — any failure (config
+/// missing, parse error, missing field) just leaves the cache empty,
+/// triggering a fresh consent dialog on the upcoming `start()`.
+fn hydrate_token_from_disk_once() {
+    let mut guard = RESTORE_TOKEN.lock().unwrap();
+    if guard.is_some() {
+        return;
+    }
+    match crate::config::ConfigStore::load() {
+        Ok(Some(cfg)) => {
+            if let Some(token) = cfg.wayland_remotedesktop_token {
+                log::info!("wayland_paste: hydrated restore_token from disk");
+                *guard = Some(token);
+            }
+        }
+        Ok(None) => {} // no config yet, first run
+        Err(e) => log::warn!("wayland_paste: could not read config to hydrate token: {e}"),
+    }
+}
+
+/// Updates the in-process cache and writes the token to disk so it
+/// survives a restart. Best-effort: if disk write fails we still keep
+/// the cached value, so the user gets the no-dialog UX for the rest of
+/// the current session at least.
+fn update_token_cache_and_disk(new_token: String) {
+    *RESTORE_TOKEN.lock().unwrap() = Some(new_token.clone());
+
+    let mut cfg = match crate::config::ConfigStore::load() {
+        Ok(Some(cfg)) => cfg,
+        Ok(None) => crate::config::Config::default(),
+        Err(e) => {
+            log::warn!("wayland_paste: could not load config to persist token: {e}");
+            return;
+        }
+    };
+    if cfg.wayland_remotedesktop_token.as_deref() == Some(new_token.as_str()) {
+        return; // already on disk, no write needed
+    }
+    cfg.wayland_remotedesktop_token = Some(new_token);
+    if let Err(e) = crate::config::ConfigStore::save(&cfg) {
+        log::warn!("wayland_paste: could not persist restore_token: {e}");
+    } else {
+        log::info!("wayland_paste: persisted new restore_token to disk");
+    }
 }
 
 /// Stands up a fresh RemoteDesktop session, selects the keyboard device,

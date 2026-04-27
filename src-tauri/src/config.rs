@@ -21,6 +21,12 @@ pub struct Config {
     pub vocabulary: String,
     pub monthly_cost_alert_usd: Option<f64>,
     pub wizard_version: u32,
+    /// XDG RemoteDesktop portal restore token (Linux Wayland only). Issued
+    /// after the first successful libei paste; presenting it on subsequent
+    /// runs lets the compositor skip the consent dialog. `#[serde(default)]`
+    /// keeps old configs (which don't have this field) loading cleanly.
+    #[serde(default)]
+    pub wayland_remotedesktop_token: Option<String>,
 }
 
 impl Default for Config {
@@ -41,6 +47,7 @@ impl Default for Config {
             vocabulary: String::new(),
             monthly_cost_alert_usd: None,
             wizard_version: 0,
+            wayland_remotedesktop_token: None,
         }
     }
 }

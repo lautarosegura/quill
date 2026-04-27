@@ -341,6 +341,22 @@ pub fn reposition_overlay(app: &tauri::AppHandle, position: crate::types::Overla
     let Some(overlay) = app.get_webview_window("overlay") else {
         return;
     };
+
+    // Wayland compositors (especially GNOME) silently ignore `set_position`
+    // for regular toplevel windows. Worse, on multi-monitor setups our
+    // calculated position can land on a monitor the user isn't looking at,
+    // making the overlay appear to "not work". Skip the call entirely on
+    // Wayland and let the compositor place the overlay where it deems
+    // appropriate (typically the focused monitor's center). The tray
+    // tooltip is the reliable feedback channel on those sessions.
+    #[cfg(target_os = "linux")]
+    {
+        if crate::display_server::DisplayServer::detect().is_wayland() {
+            log::debug!("reposition_overlay: skipping on Wayland (compositor-managed placement)");
+            return;
+        }
+    }
+
     let Ok(Some(monitor)) = overlay.current_monitor() else {
         return;
     };
