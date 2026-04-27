@@ -8,6 +8,7 @@
 	import IconHistory from './icons/IconHistory.svelte';
 	import IconSettings from './icons/IconSettings.svelte';
 	import IconVocab from './icons/IconVocab.svelte';
+	import IconPresets from './icons/IconPresets.svelte';
 	import IconModels from './icons/IconModels.svelte';
 	import IconUsage from './icons/IconUsage.svelte';
 	import IconMic from './icons/IconMic.svelte';
@@ -30,9 +31,7 @@
 		{ id: 'historial', label: 'Historial', Icon: IconHistory },
 		{ id: 'settings', label: 'Ajustes', Icon: IconSettings },
 		{ id: 'vocabulario', label: 'Vocabulario', Icon: IconVocab },
-		// Reuse the Vocabulario icon — Claude Design will swap it for a
-		// preset-specific glyph in the redesign pass.
-		{ id: 'presets', label: 'Presets', Icon: IconVocab },
+		{ id: 'presets', label: 'Presets', Icon: IconPresets },
 		{ id: 'modelos', label: 'Modelos', Icon: IconModels },
 		{ id: 'uso', label: 'Uso', Icon: IconUsage }
 	];
