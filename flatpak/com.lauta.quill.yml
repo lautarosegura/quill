@@ -1,0 +1,233 @@
+# Flatpak manifest for Quill
+#
+# Builds the entire stack from source inside a Freedesktop Sdk 24.08
+# sandbox. Targets Flathub submission once stable.
+#
+# To build locally (Linux, with flatpak-builder installed):
+#
+#     flatpak-builder --force-clean --user --install \
+#       --install-deps-from=flathub \
+#       build-dir flatpak/com.lauta.quill.yml
+#
+# Then run with:
+#
+#     flatpak run com.lauta.quill
+#
+# Reference: https://docs.flatpak.org/en/latest/manifests.html
+
+app-id: com.lauta.quill
+runtime: org.freedesktop.Sdk
+runtime-version: '24.08'
+sdk: org.freedesktop.Sdk
+
+# SDK extensions provide the language toolchains used at build time only —
+# they're stripped before the runtime is shipped.
+sdk-extensions:
+  - org.freedesktop.Sdk.Extension.rust-stable
+  - org.freedesktop.Sdk.Extension.node20
+  - org.freedesktop.Sdk.Extension.llvm18
+
+command: quill
+
+# Permissions granted to the running app. Quill's needs:
+#   - wayland + fallback x11: window display
+#   - pulseaudio: mic capture for dictation
+#   - dri: GPU access required by webkit2gtk
+#   - network: Groq API + model downloads
+#   - portal RemoteDesktop + GlobalShortcuts: hotkey + auto-paste on Wayland
+#   - Secret Service: Groq API key storage
+#   - $HOME/.quill: app config + history (persistent state)
+finish-args:
+  - --share=ipc
+  - --socket=wayland
+  - --socket=fallback-x11
+  - --socket=pulseaudio
+  - --device=dri
+  - --share=network
+  - --talk-name=org.freedesktop.portal.RemoteDesktop
+  - --talk-name=org.freedesktop.portal.GlobalShortcuts
+  - --talk-name=org.freedesktop.secrets
+  - --filesystem=home/.quill:create
+  # Tauri's autostart plugin writes a .desktop file under XDG_CONFIG_HOME
+  - --filesystem=xdg-config/autostart:create
+
+# Build-time options applied to every module unless overridden.
+build-options:
+  append-path: /usr/lib/sdk/rust-stable/bin:/usr/lib/sdk/node20/bin:/usr/lib/sdk/llvm18/bin
+  env:
+    CARGO_HOME: /run/build/quill/cargo
+    # Statically link whisper-cli's libgomp / libstdc++ where possible to
+    # match the .deb / .AppImage build profile.
+    GGML_NATIVE: 'OFF'
+
+modules:
+  # ─────────────────────────────────────────────────────────────────
+  # 1. libxdo — required by enigo for X11 keystroke synthesis (fallback
+  #    when the Wayland portal RemoteDesktop path is unavailable).
+  # ─────────────────────────────────────────────────────────────────
+  - name: libxdo
+    buildsystem: simple
+    build-commands:
+      - make PREFIX=/app install-libxdo
+    cleanup:
+      # Strip the xdotool CLI binary itself; we only need the lib.
+      - /bin/xdotool
+      - /share/man
+    sources:
+      - type: archive
+        url: https://github.com/jordansissel/xdotool/releases/download/v3.20211022.1/xdotool-3.20211022.1.tar.gz
+        sha256: 96f0facfde6d78eacad35b91b0f46fecd0b35e474c03e00e30da3fdd6f9f7d63
+
+  # ─────────────────────────────────────────────────────────────────
+  # 2. libayatana-appindicator — system tray icon. Tauri 2's tray-icon
+  #    feature uses this on Linux. Not in Freedesktop Sdk by default.
+  # ─────────────────────────────────────────────────────────────────
+  - name: libayatana-appindicator
+    buildsystem: cmake-ninja
+    config-opts:
+      - -DCMAKE_BUILD_TYPE=Release
+      - -DENABLE_BINDINGS_MONO=OFF
+      - -DENABLE_BINDINGS_VALA=OFF
+      - -DENABLE_TESTS=OFF
+    sources:
+      - type: archive
+        url: https://github.com/AyatanaIndicators/libayatana-appindicator/archive/refs/tags/0.5.93.tar.gz
+        sha256: 60b4cfc78757ac1d76c2a83ea116e9fe27faab3f25f5b66e88c95a1d61a7ab84
+    modules:
+      # libayatana-appindicator depends on libdbusmenu — bundle it.
+      - name: libdbusmenu
+        buildsystem: autotools
+        config-opts:
+          - --with-gtk=3
+          - --disable-dumper
+          - --disable-tests
+          - --disable-static
+          - --disable-vala
+          - --disable-introspection
+        sources:
+          - type: archive
+            url: https://launchpad.net/libdbusmenu/16.04/16.04.0/+download/libdbusmenu-16.04.0.tar.gz
+            sha256: b9cc4a2acd74509435892823607d966d424bd9ad5d0b00938a27240a1bfa878a
+      - name: libayatana-ido
+        buildsystem: cmake-ninja
+        config-opts:
+          - -DCMAKE_BUILD_TYPE=Release
+        sources:
+          - type: archive
+            url: https://github.com/AyatanaIndicators/libayatana-ido/archive/refs/tags/0.10.4.tar.gz
+            sha256: f0769d4a6a9ec79adbcbef23eaad62fb6929c39a7c2d29e36cb787e07d67bb5e
+      - name: libayatana-indicator
+        buildsystem: cmake-ninja
+        config-opts:
+          - -DCMAKE_BUILD_TYPE=Release
+          - -DENABLE_TESTS=OFF
+        sources:
+          - type: archive
+            url: https://github.com/AyatanaIndicators/libayatana-indicator/archive/refs/tags/0.9.4.tar.gz
+            sha256: cab5c00be9f1bfe88708fc34a7ed9cf6abaadfbe84c4dad91fb78d1ef82a6da2
+
+  # ─────────────────────────────────────────────────────────────────
+  # 3. whisper-cli — sidecar binary, statically linked, generic-CPU.
+  #    Same flags as scripts/download-whisper-cli.sh for parity with
+  #    the .deb / .AppImage build.
+  # ─────────────────────────────────────────────────────────────────
+  - name: whisper-cli
+    buildsystem: cmake-ninja
+    config-opts:
+      - -DCMAKE_BUILD_TYPE=Release
+      - -DBUILD_SHARED_LIBS=OFF
+      - -DGGML_NATIVE=OFF
+      - -DWHISPER_BUILD_TESTS=OFF
+      - -DWHISPER_BUILD_SERVER=OFF
+      - -DWHISPER_BUILD_EXAMPLES=ON
+    build-commands:
+      # Custom install: cmake doesn't install the example binary by
+      # default, so copy it into the Quill private bin dir manually.
+      - install -Dm755 build/bin/whisper-cli /app/lib/quill/binaries/whisper-cli-x86_64-unknown-linux-gnu
+    sources:
+      - type: git
+        url: https://github.com/ggml-org/whisper.cpp.git
+        tag: v1.7.6
+        commit: '' # filled at build time by flatpak-builder
+    cleanup:
+      - '*'  # no system-wide install of whisper.cpp; only the private binary
+
+  # ─────────────────────────────────────────────────────────────────
+  # 4. silero-vad model — 865 KB binary, fetched from the canonical
+  #    HuggingFace repo. Same file as `scripts/download-whisper-cli.sh`.
+  # ─────────────────────────────────────────────────────────────────
+  - name: silero-vad-model
+    buildsystem: simple
+    build-commands:
+      - install -Dm644 ggml-silero-v6.2.0.bin /app/lib/quill/binaries/ggml-silero-v6.2.0.bin
+    sources:
+      - type: file
+        url: https://huggingface.co/ggml-org/whisper-vad/resolve/main/ggml-silero-v6.2.0.bin
+        sha256: '' # filled at build time — verify against actual download
+        dest-filename: ggml-silero-v6.2.0.bin
+
+  # ─────────────────────────────────────────────────────────────────
+  # 5. quill — the Tauri 2 + Svelte 5 app itself. Builds frontend with
+  #    pnpm + Vite, then the Rust binary via cargo. Installs the binary
+  #    and assets to /app. Network needed only at build time for cargo
+  #    + pnpm registry fetches; runtime network is granted via
+  #    finish-args separately for Groq API.
+  # ─────────────────────────────────────────────────────────────────
+  - name: quill
+    buildsystem: simple
+    build-options:
+      build-args:
+        - --share=network
+    build-commands:
+      # Frontend build (svelte → static files in build/)
+      - pnpm install --frozen-lockfile
+      - pnpm build
+
+      # Backend build (cargo → release binary)
+      - cd src-tauri && cargo build --release --locked
+
+      # Install the main binary
+      - install -Dm755 src-tauri/target/release/quill /app/bin/quill
+
+      # Frontend assets are read at runtime from this path; Tauri's
+      # tauri.conf.json points to ../build relative to src-tauri.
+      - cp -r build /app/lib/quill/build
+
+      # Tauri config for runtime resource resolution.
+      - install -Dm644 src-tauri/tauri.conf.json /app/lib/quill/tauri.conf.json
+      - install -Dm644 src-tauri/tauri.linux.conf.json /app/lib/quill/tauri.linux.conf.json
+
+      # Icons — tauri.conf.json's icon paths point to icons/ in the
+      # bundle. Match the same layout under /app.
+      - install -Dm644 src-tauri/icons/icon.png /app/share/icons/hicolor/512x512/apps/com.lauta.quill.png
+      - install -Dm644 src-tauri/icons/128x128.png /app/share/icons/hicolor/128x128/apps/com.lauta.quill.png
+      - install -Dm644 src-tauri/icons/32x32.png /app/share/icons/hicolor/32x32/apps/com.lauta.quill.png
+
+      # Desktop entry — required by Flathub.
+      - install -Dm644 flatpak/com.lauta.quill.desktop /app/share/applications/com.lauta.quill.desktop
+
+      # AppStream metadata — required by Flathub for app discovery.
+      - install -Dm644 flatpak/com.lauta.quill.metainfo.xml /app/share/metainfo/com.lauta.quill.metainfo.xml
+
+    sources:
+      - type: dir
+        path: ..
+        # In Flathub submission this is replaced by:
+        #   - type: git
+        #     url: https://github.com/lautarosegura/quill.git
+        #     tag: v0.x.y
+        #     commit: <sha>
+
+# Cleanup rules — applied after all modules build, keeps the final
+# Flatpak smaller. We keep /app/lib/quill/ (binaries + frontend) and
+# /app/bin/quill (launcher) and the desktop/icon assets; everything
+# else from build-time deps is debug-only.
+cleanup:
+  - /include
+  - /lib/pkgconfig
+  - /lib/cmake
+  - /share/aclocal
+  - /share/doc
+  - /share/man
+  - '*.la'
+  - '*.a'

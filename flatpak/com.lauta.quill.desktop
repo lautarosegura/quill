@@ -1,0 +1,15 @@
+[Desktop Entry]
+Type=Application
+Name=Quill
+GenericName=Voice-to-text dictation
+GenericName[es]=Dictado de voz a texto
+Comment=Dictate text into any window with a global hotkey
+Comment[es]=Dictá texto en cualquier ventana con un atajo global
+Exec=quill
+Icon=com.lauta.quill
+Terminal=false
+StartupNotify=true
+Categories=Utility;Audio;Office;
+Keywords=dictation;speech;voice;transcription;whisper;
+Keywords[es]=dictado;voz;transcripción;whisper;
+StartupWMClass=quill
