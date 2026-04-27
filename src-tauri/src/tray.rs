@@ -4,11 +4,12 @@
 
 use tauri::{
     image::Image,
-    menu::{Menu, MenuItem},
+    menu::{IsMenuItem, Menu, MenuItem, PredefinedMenuItem, Submenu},
     tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent},
     AppHandle, Listener, Manager,
 };
 
+use crate::config::ConfigStore;
 use crate::events;
 
 // Embed raw RGBA buffers for the three tray states. 32x32 * 4 bytes = 4096.
@@ -27,7 +28,41 @@ const TRAY_ID: &str = "quill-tray";
 pub fn build(app: &AppHandle) -> tauri::Result<()> {
     let open = MenuItem::with_id(app, "open", "Abrir Quill", true, None::<&str>)?;
     let quit = MenuItem::with_id(app, "quit", "Salir", true, None::<&str>)?;
-    let menu = Menu::with_items(app, &[&open, &quit])?;
+
+    // Preset submenu: "Sin preset" + one entry per configured preset.
+    // Built once at startup from the loaded config; new user-created
+    // presets via the Settings UI won't appear until restart (acceptable
+    // limitation for v0.3.0 — dynamic rebuilding is a v0.3.x improvement).
+    let cfg = ConfigStore::load().ok().flatten().unwrap_or_default();
+    let none_item = MenuItem::with_id(app, "preset:none", "Sin preset", true, None::<&str>)?;
+    let mut preset_items: Vec<MenuItem<_>> = Vec::with_capacity(cfg.presets.len());
+    for preset in &cfg.presets {
+        preset_items.push(MenuItem::with_id(
+            app,
+            format!("preset:{}", preset.id),
+            &preset.name,
+            true,
+            None::<&str>,
+        )?);
+    }
+    let mut preset_refs: Vec<&dyn IsMenuItem<_>> = vec![&none_item];
+    for item in &preset_items {
+        preset_refs.push(item as &dyn IsMenuItem<_>);
+    }
+    let preset_submenu = Submenu::with_items(app, "Preset", true, &preset_refs)?;
+
+    let separator_top = PredefinedMenuItem::separator(app)?;
+    let separator_bottom = PredefinedMenuItem::separator(app)?;
+    let menu = Menu::with_items(
+        app,
+        &[
+            &open,
+            &separator_top,
+            &preset_submenu,
+            &separator_bottom,
+            &quit,
+        ],
+    )?;
 
     // Start with the Idle icon (muted gray).
     let initial_icon = Image::new(TRAY_IDLE_RGBA, TRAY_ICON_SIZE, TRAY_ICON_SIZE);
@@ -37,10 +72,20 @@ pub fn build(app: &AppHandle) -> tauri::Result<()> {
         .icon(initial_icon)
         .menu(&menu)
         .show_menu_on_left_click(false)
-        .on_menu_event(|app, event| match event.id().as_ref() {
-            "open" => show_main(app),
-            "quit" => app.exit(0),
-            _ => {}
+        .on_menu_event(|app, event| {
+            let id = event.id().as_ref().to_string();
+            match id.as_str() {
+                "open" => show_main(app),
+                "quit" => app.exit(0),
+                s if s.starts_with("preset:") => {
+                    let preset_id = s["preset:".len()..].to_string();
+                    let app = app.clone();
+                    tauri::async_runtime::spawn(async move {
+                        set_active_preset(&app, preset_id).await;
+                    });
+                }
+                _ => {}
+            }
         })
         .on_tray_icon_event(|tray, event| {
             if let TrayIconEvent::Click {
@@ -129,5 +174,31 @@ fn show_main(app: &AppHandle) {
     if let Some(window) = app.get_webview_window("main") {
         let _ = window.show();
         let _ = window.set_focus();
+    }
+}
+
+/// Tray-menu callback: switch the active preset and persist. `"none"` is
+/// the special "no preset, vocabulary-only" option (matches the Settings
+/// dropdown's empty-state). Best-effort — failures log a warning so the
+/// click feels like it did nothing rather than crashing the app.
+async fn set_active_preset(app: &AppHandle, preset_id: String) {
+    let Some(state) = app.try_state::<crate::AppState>() else {
+        log::warn!("set_active_preset: AppState not available yet");
+        return;
+    };
+    let new_active = if preset_id == "none" {
+        None
+    } else {
+        Some(preset_id.clone())
+    };
+    let mut cfg = state.config.write().await;
+    if cfg.active_preset_id == new_active {
+        return; // no-op
+    }
+    cfg.active_preset_id = new_active;
+    if let Err(e) = ConfigStore::save(&cfg) {
+        log::warn!("set_active_preset: failed to persist: {e}");
+    } else {
+        log::info!("active preset set to: {preset_id}");
     }
 }

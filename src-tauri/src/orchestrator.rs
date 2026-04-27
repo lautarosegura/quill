@@ -355,15 +355,15 @@ impl AppOrchestrator {
         let duration_ms = wav_duration_ms(&wav);
 
         // Snapshot the bits of config we need — keeps the RwLock guard short.
-        let (language, vocabulary, engine_choice) = {
+        // `active_prompt()` composes the active preset's prompt with the
+        // global vocabulary (truncated together), so a single call gives
+        // us the final string Whisper should see.
+        let (language, prompt, engine_choice) = {
             let cfg = self.config.read().await;
+            let p = cfg.active_prompt();
             (
                 cfg.language,
-                if cfg.vocabulary.is_empty() {
-                    None
-                } else {
-                    Some(cfg.vocabulary.clone())
-                },
+                if p.is_empty() { None } else { Some(p) },
                 cfg.engine,
             )
         };
@@ -371,7 +371,7 @@ impl AppOrchestrator {
         let req = TranscriptionRequest {
             audio_wav: &wav,
             language,
-            prompt: vocabulary.as_deref(),
+            prompt: prompt.as_deref(),
         };
 
         let result = match self.engine.transcribe(req).await {
