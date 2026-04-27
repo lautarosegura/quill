@@ -59,11 +59,12 @@ jobs:
       # `resources` paths exist (and that globs match at least one file).
       # We create empty per-platform placeholders:
       #   * Windows: whisper-cli-<triple>.exe + ci-placeholder.dll
-      #   * Linux:   whisper-cli-<triple> + ci-placeholder.so
+      #   * Linux:   whisper-cli-<triple>
       #   * macOS:   whisper-cli-<triple> (no per-platform resources glob)
-      # The `.dll` / `.so` files satisfy the per-platform
-      # tauri.<os>.conf.json `resources` glob. Local dev uses
-      # scripts/download-whisper-cli.* for the real binaries.
+      # Plus the Silero VAD model placeholder on Win+Linux (it's listed
+      # by exact filename in tauri.{windows,linux}.conf.json's resources,
+      # so the file must exist for build.rs validation to pass).
+      # Local dev uses scripts/download-whisper-cli.* for the real binaries.
       - name: Stub sidecar + resource placeholders
         shell: bash
         run: |
@@ -72,6 +73,7 @@ jobs:
             windows-latest)
               touch "src-tauri/binaries/whisper-cli-x86_64-pc-windows-msvc.exe"
               touch "src-tauri/binaries/ci-placeholder.dll"
+              touch "src-tauri/binaries/ggml-silero-v6.2.0.bin"
               ;;
             macos-latest)
               touch "src-tauri/binaries/whisper-cli-aarch64-apple-darwin"
@@ -80,7 +82,7 @@ jobs:
             ubuntu-latest)
               touch "src-tauri/binaries/whisper-cli-x86_64-unknown-linux-gnu"
               chmod +x "src-tauri/binaries/whisper-cli-x86_64-unknown-linux-gnu"
-              touch "src-tauri/binaries/ci-placeholder.so"
+              touch "src-tauri/binaries/ggml-silero-v6.2.0.bin"
               ;;
           esac
 

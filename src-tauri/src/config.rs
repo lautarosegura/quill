@@ -27,6 +27,16 @@ pub struct Config {
     /// keeps old configs (which don't have this field) loading cleanly.
     #[serde(default)]
     pub wayland_remotedesktop_token: Option<String>,
+    /// Enables Silero VAD pre-processing in `whisper-cli`. Eliminates the
+    /// "you" / "thanks for watching" hallucinations Whisper produces from
+    /// trailing-silence audio. Default true; toggle exposed in Settings →
+    /// Advanced for the rare user who needs to disable it.
+    #[serde(default = "default_vad_enabled")]
+    pub vad_enabled: bool,
+}
+
+fn default_vad_enabled() -> bool {
+    true
 }
 
 impl Default for Config {
@@ -48,6 +58,7 @@ impl Default for Config {
             monthly_cost_alert_usd: None,
             wizard_version: 0,
             wayland_remotedesktop_token: None,
+            vad_enabled: default_vad_enabled(),
         }
     }
 }

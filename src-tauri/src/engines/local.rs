@@ -104,6 +104,12 @@ impl TranscriptionEngine for LocalEngine {
             )));
         }
 
+        // Snapshot the VAD-enabled flag once per call so a Settings change
+        // mid-transcription doesn't half-apply.
+        let vad_enabled = self.config.read().await.vad_enabled;
+        let vad_model_path = self.sidecar_dir.join("ggml-silero-v6.2.0.bin");
+        let vad_model_available = vad_enabled && vad_model_path.exists();
+
         let id = uuid::Uuid::new_v4();
         let temp_dir = std::env::temp_dir();
         let wav_path = temp_dir.join(format!("quill-{id}.wav"));
@@ -146,6 +152,20 @@ impl TranscriptionEngine for LocalEngine {
             if !prompt.is_empty() {
                 cmd.arg("--prompt").arg(prompt);
             }
+        }
+
+        // Silero VAD pre-process: skip silence segments so Whisper doesn't
+        // hallucinate filler ("you", "thanks for watching") at trailing
+        // silence. Bundled alongside whisper-cli; if the file is missing
+        // (broken install or user deleted it) we silently skip the flags
+        // rather than fail — the transcription still works without VAD.
+        if vad_model_available {
+            cmd.arg("--vad").arg("--vad-model").arg(&vad_model_path);
+        } else if vad_enabled {
+            log::warn!(
+                "VAD enabled in Settings but {:?} is missing; transcribing without VAD",
+                vad_model_path
+            );
         }
 
         // Suppress stdout — whisper-cli is noisy. `kill_on_drop` ensures the
