@@ -33,11 +33,14 @@
 
 	function formatCompositor(env: LinuxEnvironment | null): string {
 		if (!env) return '';
-		const desk = env.desktop;
-		if (desk.toLowerCase() === 'gnome' && env.gnome_version) {
+		const desk = env.desktop.toLowerCase();
+		if (desk === 'gnome' && env.gnome_version) {
 			return `GNOME ${env.gnome_version}`;
 		}
-		return desk;
+		if (desk === 'kde' && env.kde_plasma_version) {
+			return `KDE Plasma ${env.kde_plasma_version}`;
+		}
+		return env.desktop;
 	}
 
 	async function copyUsermod() {
