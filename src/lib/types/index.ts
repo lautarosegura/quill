@@ -16,6 +16,12 @@ export interface Keybind {
 	key: string | null;
 }
 
+export interface Substitution {
+	from: string;
+	to: string;
+	case_sensitive: boolean;
+}
+
 export interface Config {
 	language: Language;
 	engine: Engine;
@@ -32,6 +38,7 @@ export interface Config {
 	vocabulary: string;
 	monthly_cost_alert_usd: number | null;
 	wizard_version: number;
+	substitutions: Substitution[];
 }
 
 export interface SerializableError {

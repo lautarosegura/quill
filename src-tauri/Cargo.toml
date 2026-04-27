@@ -54,6 +54,11 @@ futures-util = "0.3"
 # Phase 6 additions
 rodio = "0.19"
 
+# Phase 8 (transcription quality pack) additions
+# Used by `post_process::substitute` for word-boundary regex replacements
+# in the post-transcription correction pass.
+regex = "1.11"
+
 # keyring 3.x requires picking a platform backend explicitly.
 # Use the native credential store on each OS.
 [target.'cfg(windows)'.dependencies]

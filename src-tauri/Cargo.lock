@@ -4196,6 +4196,7 @@ dependencies = [
  "log",
  "parking_lot",
  "rdev",
+ "regex",
  "reis",
  "reqwest 0.12.28",
  "rodio",
