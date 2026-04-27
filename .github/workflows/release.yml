@@ -1,13 +1,24 @@
 name: Release
 
-# Builds signed-installer assets for Windows + Linux on every tagged release.
+# Builds installer assets for Windows + Linux on every tagged release.
 # Triggered by:
 #   * pushing a tag like `v0.2.0`
 #   * the Actions "Run workflow" button (workflow_dispatch)
 #
-# The job creates a GitHub draft Release and uploads the Tauri-produced
-# installers per OS. Maintainer reviews the draft, edits release notes, and
-# hits Publish.
+# Workflow shape:
+#
+#   1. `create-release` (single Linux job): creates an EMPTY draft on
+#      GitHub. Outputs the new release's id.
+#   2. `release` (matrix Linux + Windows): each builds its installers
+#      via tauri-action and uploads them to the SHARED draft id from
+#      step 1.
+#
+# This split is critical to avoid a race condition: if both matrix jobs
+# tried to "find or create" the draft themselves (the previous design),
+# they'd each not see the other's in-flight draft and create their own
+# duplicate, leaving us with two half-populated drafts. Pinning the
+# draft id up-front + passing it via `needs.create-release.outputs`
+# guarantees one draft with all five installers.
 
 on:
   push:
@@ -16,7 +27,36 @@ on:
   workflow_dispatch:
 
 jobs:
+  create-release:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    outputs:
+      release_id: ${{ steps.create.outputs.result }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Create empty draft release
+        id: create
+        uses: actions/github-script@v7
+        with:
+          # Returns the draft's numeric id, captured as the job output
+          # via `core.setOutput` (the implicit `result`).
+          script: |
+            const tagName = context.ref.replace('refs/tags/', '');
+            const { data } = await github.rest.repos.createRelease({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              tag_name: tagName,
+              name: `Quill ${tagName}`,
+              draft: true,
+              prerelease: false,
+            });
+            core.info(`Created draft release id=${data.id} for tag ${tagName}`);
+            return data.id;
+
   release:
+    needs: create-release
     permissions:
       contents: write
     strategy:
@@ -83,15 +123,11 @@ jobs:
             bash ./scripts/download-whisper-cli.sh
           fi
 
-      - name: Build installers via tauri-action
+      - name: Build installers and upload to shared draft
         uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          tagName: ${{ github.ref_name }}
-          releaseName: 'Quill ${{ github.ref_name }}'
-          releaseDraft: true
-          prerelease: false
-          # On Linux the per-platform resources come from
-          # src-tauri/tauri.linux.conf.json (auto-merged by the Tauri CLI).
-          # Same for tauri.windows.conf.json on Windows. No additional args.
+          # Upload to the draft created in `create-release`. tauri-action
+          # appends to it instead of trying to find/create on its own.
+          releaseId: ${{ needs.create-release.outputs.release_id }}
