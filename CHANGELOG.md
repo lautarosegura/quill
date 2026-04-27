@@ -7,6 +7,41 @@ breaking changes between minor versions.
 
 ## [Unreleased]
 
+## [0.2.2] — 2026-04-24
+
+Polish + Wayland round-out from v0.2.1 user testing.
+
+### Fixed
+
+- **Pill labels in Spanish** — the floating overlay said "Recording" /
+  "Transcribing…" in English while the rest of the app was in Spanish.
+  Now consistently "Grabando" / "Transcribiendo…". Affects all
+  platforms (Windows, macOS, Linux), not just Linux.
+- **Overlay invisible on Wayland multi-monitor** — `set_position` is
+  silently ignored by GNOME for regular toplevel windows, and on
+  multi-monitor setups our calculated coordinates can land on a
+  monitor the user isn't focused on. Skip the call entirely on
+  Wayland; let the compositor place the overlay.
+
+### Added
+
+- **State-aware tray icon tooltip** — the tray icon's hover tooltip
+  now mirrors the transcription state (`Quill — Grabando`,
+  `Quill — Transcribiendo`, `Quill — Listo para pegar (Ctrl+V)`,
+  etc.). Reliable feedback across all compositors, complements the
+  pill (and replaces it as the primary signal on Wayland multi-monitor
+  setups where the pill placement is unpredictable).
+- **Persistent Wayland RemoteDesktop restore token** — the consent
+  dialog for libei keystroke synthesis now appears only on the very
+  first paste of the install. Previously it re-popped on every app
+  launch because the token lived in a process-wide static.
+  `Config.wayland_remotedesktop_token` is now persisted to
+  `~/.quill/config.json` and rehydrated on first paste of each launch.
+- **`ROADMAP.md`** — captures the prioritized list of features and
+  improvements considered but not scheduled, organized into Wayland
+  stabilization / macOS support / UX features / ops + distribution /
+  wild-card ideas.
+
 ## [0.2.1] — 2026-04-24
 
 Linux bug-fix release from first real-world testing of the v0.2.0 `.deb`
@@ -157,7 +192,8 @@ macOS build will follow.
 - Vocabulary affects Whisper's decoder as a prompt; there's no
   post-transcription exact-match substitution yet.
 
-[Unreleased]: https://github.com/lautarosegura/quill/compare/v0.2.1...HEAD
+[Unreleased]: https://github.com/lautarosegura/quill/compare/v0.2.2...HEAD
+[0.2.2]: https://github.com/lautarosegura/quill/releases/tag/v0.2.2
 [0.2.1]: https://github.com/lautarosegura/quill/releases/tag/v0.2.1
 [0.2.0]: https://github.com/lautarosegura/quill/releases/tag/v0.2.0
 [0.1.0]: https://github.com/lautarosegura/quill/releases/tag/v0.1.0

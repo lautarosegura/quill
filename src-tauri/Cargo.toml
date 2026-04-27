@@ -1,6 +1,6 @@
 [package]
 name = "quill"
-version = "0.2.1"
+version = "0.2.2"
 description = "Voice-to-text dictation app for Windows, Linux, and macOS."
 authors = ["Lautaro Segura"]
 license = "MIT OR Apache-2.0"
