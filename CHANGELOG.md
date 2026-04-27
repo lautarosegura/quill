@@ -7,6 +7,77 @@ breaking changes between minor versions.
 
 ## [Unreleased]
 
+## [0.3.0] — 2026-04-27
+
+The "transcription quality pack" — three orthogonal improvements to how
+Whisper transcribes the user's audio. All ship behind sensible defaults
+so existing users feel an immediate quality bump without any setup.
+
+### Added
+
+- **VAD pre-processing** via Silero v6.2.0 (built into `whisper-cli`'s
+  `--vad` flag). The VAD model (`ggml-silero-v6.2.0.bin`, ~865 KB) is
+  bundled in the installer and passed alongside every transcribe call.
+  Eliminates the trailing-silence hallucinations Whisper produces when
+  the audio ends in silence ("you", "thanks for watching", repeated
+  last phrase). On by default; `Config.vad_enabled` exposes the toggle
+  for the rare power user who needs to disable.
+- **Vocabulary post-substitution** — exact-match replacement applied
+  after `post_process::clean`, with regex word-boundary semantics so a
+  rule `Mokia → Nokia` doesn't touch "Mokian". Word boundaries are
+  smart-elided when the pattern starts/ends with a non-word char (e.g.
+  `"C++"` only gets a leading boundary). New "Sustituciones" table
+  appended below the existing Vocabulario textarea — Reemplazar / Por
+  / Aa case-sensitivity / delete columns plus "+ Agregar".
+- **Custom prompt presets** — switchable Whisper-decoder prompts that
+  bias transcription toward a context. 4 built-ins ship with the
+  install: **General**, **Código**, **Email**, **Casual**. Users can
+  create custom presets, edit prompts, delete (built-ins are
+  edit-prompt-only, name-locked, non-deletable). Active preset's
+  prompt is concatenated with `Config.vocabulary` and truncated to
+  ~880 chars before being sent to Whisper — preset = tone, vocabulary
+  = words, both bias the decoder.
+- **Tray menu "Preset" submenu** — quick-switch the active preset
+  without opening the app. Click any preset name to set it as active.
+  Built once at app startup; user-created presets added at runtime
+  appear after restart (dynamic rebuilding is queued for v0.3.x).
+- **New `/main/presets` page** — master/detail UI for preset management
+  (list with radio-button activation on the left, name + prompt
+  editor on the right). Sidebar nav has a new "Presets" entry that
+  reuses the Vocabulario icon as a temporary placeholder pending the
+  Claude Design redesign pass.
+- **`docs/claude-design-brief-v0.3.0.md`** — handoff document listing
+  every new UI surface in v0.3.0 with functional spec + current Svelte
+  source for context. Used to commission a Claude Design redesign of
+  the substitutions table and presets master/detail before the next
+  release.
+
+### Changed
+
+- `regex = 1.11` added as a top-level dependency for the substitution
+  word-boundary replacements.
+- Orchestrator's prompt construction now goes through
+  `Config::active_prompt()` — single source of truth that combines the
+  active preset with the vocabulary and handles the 880-char truncation.
+
+### Coexistence with `vocabulary`
+
+The original v0.3.0 spec had presets *replacing* the vocabulary field.
+We changed direction mid-implementation to **coexistence** — preset
+gives the decoder the tone/style context, vocabulary gives it the
+words list, both apply simultaneously. More expressive, no migration
+needed. Setting `Config.active_preset_id = None` (the default for
+existing configs) preserves pre-presets behavior exactly: vocabulary
+becomes the entire prompt.
+
+### Known limitations
+
+- Tray submenu doesn't auto-refresh when the user creates a new preset
+  via the Settings page; restart picks it up.
+- No UI for VAD toggle; edit `~/.quill/config.json` directly to disable.
+- New components ship with minimal styling — Claude Design redesign
+  pending (see `docs/claude-design-brief-v0.3.0.md`).
+
 ## [0.2.2] — 2026-04-24
 
 Polish + Wayland round-out from v0.2.1 user testing.
@@ -192,7 +263,8 @@ macOS build will follow.
 - Vocabulary affects Whisper's decoder as a prompt; there's no
   post-transcription exact-match substitution yet.
 
-[Unreleased]: https://github.com/lautarosegura/quill/compare/v0.2.2...HEAD
+[Unreleased]: https://github.com/lautarosegura/quill/compare/v0.3.0...HEAD
+[0.3.0]: https://github.com/lautarosegura/quill/releases/tag/v0.3.0
 [0.2.2]: https://github.com/lautarosegura/quill/releases/tag/v0.2.2
 [0.2.1]: https://github.com/lautarosegura/quill/releases/tag/v0.2.1
 [0.2.0]: https://github.com/lautarosegura/quill/releases/tag/v0.2.0
