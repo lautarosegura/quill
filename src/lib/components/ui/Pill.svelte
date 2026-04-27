@@ -61,7 +61,7 @@
 				></span>
 			</span>
 			<Waveform active color="white" />
-			<span class="flex-1 text-right text-[14px] font-medium tracking-tight">Recording</span>
+			<span class="flex-1 text-right text-[14px] font-medium tracking-tight">Grabando</span>
 		</div>
 	{:else if state === 'transcribing'}
 		<div
@@ -70,7 +70,7 @@
 			out:fade={{ duration: CROSSFADE_MS }}
 		>
 			<DotSpinner color={BORDER.transcribing} />
-			<span class="shimmer-text flex-1 text-[14px] font-medium tracking-tight">Transcribing…</span>
+			<span class="shimmer-text flex-1 text-[14px] font-medium tracking-tight">Transcribiendo…</span>
 		</div>
 	{:else if state === 'cancelled'}
 		<div

@@ -60,6 +60,13 @@ pub fn build(app: &AppHandle) -> tauri::Result<()> {
 /// user can see at a glance whether Quill is idle, recording, working, or in
 /// an error state — even when the main window is hidden.
 ///
+/// Also updates the tray tooltip to match. The tooltip is the
+/// reliable-everywhere fallback when the floating overlay pill goes
+/// missing — Wayland compositors (especially GNOME on multi-monitor)
+/// silently ignore `set_position` for regular toplevel windows so the pill
+/// can land off-screen or on a different monitor than the user's focus.
+/// The tray's own placement is compositor-managed and always visible.
+///
 /// Call once, after `build`, from the Tauri setup closure.
 pub fn spawn_state_listener(app: &AppHandle) {
     let handle = app.clone();
@@ -84,6 +91,25 @@ pub fn spawn_state_listener(app: &AppHandle) {
             events::TranscriptionState::Error { .. } => TRAY_ERROR_RGBA,
         };
 
+        // Spanish state labels to match the rest of the app.
+        let tooltip: String = match &state {
+            events::TranscriptionState::Idle => "Quill".to_string(),
+            events::TranscriptionState::Recording => "Quill — Grabando".to_string(),
+            events::TranscriptionState::Transcribing => "Quill — Transcribiendo".to_string(),
+            events::TranscriptionState::Injecting => "Quill — Pegando".to_string(),
+            events::TranscriptionState::Cancelled => "Quill — Cancelada".to_string(),
+            events::TranscriptionState::ClipboardOnly { .. } => {
+                "Quill — Listo para pegar (Ctrl+V)".to_string()
+            }
+            events::TranscriptionState::Error { message } => {
+                // Keep the tooltip compact — the message can be long. First
+                // line / first 80 chars, whichever is shorter.
+                let short = message.lines().next().unwrap_or(message);
+                let truncated: String = short.chars().take(80).collect();
+                format!("Quill — Error: {truncated}")
+            }
+        };
+
         let Some(tray) = handle.tray_by_id(TRAY_ID) else {
             log::warn!("tray icon '{TRAY_ID}' not found when updating state");
             return;
@@ -92,6 +118,9 @@ pub fn spawn_state_listener(app: &AppHandle) {
         let img = Image::new(rgba, TRAY_ICON_SIZE, TRAY_ICON_SIZE);
         if let Err(e) = tray.set_icon(Some(img)) {
             log::warn!("failed to swap tray icon: {e}");
+        }
+        if let Err(e) = tray.set_tooltip(Some(tooltip)) {
+            log::warn!("failed to update tray tooltip: {e}");
         }
     });
 }
