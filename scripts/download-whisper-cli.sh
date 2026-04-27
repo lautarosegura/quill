@@ -113,6 +113,15 @@ case "$HOST" in
       echo "Warning: ${DEST} did not execute cleanly. Run 'ldd ${DEST}' to inspect dependencies." >&2
     fi
 
+    # VAD model — Silero v6.2.0 from ggml-org's HuggingFace repo. Bundled
+    # alongside whisper-cli so users get auto-stop / hallucination-free
+    # transcription out of the box (no separate download). ~2 MB.
+    VAD_MODEL_URL="https://huggingface.co/ggml-org/whisper-vad/resolve/main/ggml-silero-v6.2.0.bin"
+    VAD_DEST="${BIN_DIR}/ggml-silero-v6.2.0.bin"
+    echo "Downloading Silero VAD model..."
+    curl -fL "${VAD_MODEL_URL}" -o "${VAD_DEST}"
+    echo "Installed ${VAD_DEST}"
+
     echo "Done."
     ;;
 

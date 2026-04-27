@@ -47,5 +47,15 @@ Get-ChildItem -Path $ReleaseDir -Filter "*.dll" | ForEach-Object {
 	Write-Host "Installed $dllDest"
 }
 
+# VAD model — Silero v6.2.0 from ggml-org's HuggingFace repo. Bundled
+# alongside whisper-cli so users get hallucination-free transcription
+# (no trailing-silence "you" / "thanks for watching") out of the box.
+# ~2 MB, single static download.
+$VadModelUrl = "https://huggingface.co/ggml-org/whisper-vad/resolve/main/ggml-silero-v6.2.0.bin"
+$VadDest = Join-Path $BinDir "ggml-silero-v6.2.0.bin"
+Write-Host "Downloading Silero VAD model..."
+Invoke-WebRequest -Uri $VadModelUrl -OutFile $VadDest
+Write-Host "Installed $VadDest"
+
 Remove-Item -Recurse -Force $Tmp
 Write-Host "Done."
