@@ -13,6 +13,7 @@ export type LinuxEnvironment = {
 	display_server: DisplayServer;
 	desktop: string;
 	gnome_version: number | null;
+	kde_plasma_version: number | null;
 };
 
 /**
@@ -93,20 +94,23 @@ export async function initLinuxEnvironment(): Promise<LinuxEnvironment | null> {
 }
 
 /** True iff the current Linux compositor lacks portal-based hotkey support
- *  (GNOME pre-48, Sway, Hyprland, wlroots-based) — i.e. the wizard should
- *  surface the "add yourself to the input group" card. Returns false on
- *  X11, on Windows / macOS, on GNOME 48+, on KDE Plasma 6+, and before
- *  `initLinuxEnvironment()` has resolved. */
+ *  (GNOME pre-48, KDE Plasma 5, Sway, Hyprland, wlroots-based) — i.e. the
+ *  wizard should surface the "add yourself to the input group" card.
+ *  Returns false on X11, on Windows / macOS, on GNOME 48+, on confirmed
+ *  KDE Plasma 6+, and before `initLinuxEnvironment()` has resolved. */
 export function needsInputGroupSetup(env: LinuxEnvironment | null): boolean {
 	if (!env) return false;
 	if (env.display_server !== 'wayland') return false;
 	const desktop = env.desktop.toLowerCase();
 	// GNOME 48+ has the GlobalShortcuts portal — zero config.
 	if (desktop === 'gnome') return (env.gnome_version ?? 0) < 48;
-	// KDE Plasma 6 also ships the portal. We can't easily get the major
-	// version, but Plasma 6 has been stable since Feb 2024 and is the
-	// default everywhere — assume modern.
-	if (desktop === 'kde') return false;
+	// KDE: only Plasma 6+ ships the portal. Plasma 5 (still on LTS distros
+	// like Ubuntu 22.04) needs the input-group fallback. If the version
+	// can't be confirmed, fall through and show the card — false negatives
+	// are worse than false positives here.
+	if (desktop === 'kde') {
+		return (env.kde_plasma_version ?? 0) < 6;
+	}
 	// Everything else (Sway, Hyprland, wlroots, Cinnamon, MATE…) needs
 	// the rdev evdev fallback, which requires the input group.
 	return true;
