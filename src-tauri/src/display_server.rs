@@ -55,3 +55,54 @@ impl DisplayServer {
         matches!(self, DisplayServer::Wayland)
     }
 }
+
+/// Linux-only environment fingerprint. Tells the wizard whether the user
+/// is on a "zero-config" combo (GNOME 48+ Wayland, KDE Plasma 6 Wayland,
+/// or any X11 session) or whether they need to opt into the `input` group
+/// for the rdev evdev-listen fallback to work.
+///
+/// Detection sources:
+/// - `display_server`: reuses [`DisplayServer::detect`]
+/// - `desktop`: read from `XDG_CURRENT_DESKTOP` env var (colon-separated,
+///   we take the first segment)
+/// - `gnome_version`: parsed from `gnome-shell --version` stdout when
+///   the desktop is GNOME. Only the major version (`48` from `"48.0"`).
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct LinuxEnvironment {
+    pub display_server: DisplayServer,
+    pub desktop: String,
+    pub gnome_version: Option<u32>,
+}
+
+#[cfg(target_os = "linux")]
+pub fn detect_linux_environment() -> LinuxEnvironment {
+    let desktop = std::env::var("XDG_CURRENT_DESKTOP")
+        .ok()
+        .and_then(|s| s.split(':').next().map(|seg| seg.to_string()))
+        .unwrap_or_else(|| "Unknown".to_string());
+    let gnome_version = if desktop.eq_ignore_ascii_case("GNOME") {
+        gnome_shell_major_version()
+    } else {
+        None
+    };
+    LinuxEnvironment {
+        display_server: DisplayServer::detect(),
+        desktop,
+        gnome_version,
+    }
+}
+
+#[cfg(target_os = "linux")]
+fn gnome_shell_major_version() -> Option<u32> {
+    let output = std::process::Command::new("gnome-shell")
+        .arg("--version")
+        .output()
+        .ok()?;
+    if !output.status.success() {
+        return None;
+    }
+    // stdout format: "GNOME Shell 48.0" / "GNOME Shell 46.5"
+    let s = String::from_utf8_lossy(&output.stdout);
+    let last_token = s.split_whitespace().last()?;
+    last_token.split('.').next()?.parse::<u32>().ok()
+}
