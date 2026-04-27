@@ -82,6 +82,11 @@
   </branding>
 
   <releases>
+    <release version="0.4.0" date="2026-04-27">
+      <description>
+        <p>Linux compatibility round-out — Flatpak / Flathub manifest, wizard adaptive setup card for Wayland compositors without GlobalShortcuts portal (GNOME &lt;48, KDE Plasma 5, Sway, Hyprland, wlroots), and hybrid pill + native desktop notifications for ClipboardOnly / Error states on Wayland.</p>
+      </description>
+    </release>
     <release version="0.3.0" date="2026-04-27">
       <description>
         <p>Transcription quality pack — Silero VAD pre-processing, vocabulary post-substitution, custom prompt presets (General, Código, Email, Casual + custom), polished UI from the Claude Design v0.3.0 bundle.</p>

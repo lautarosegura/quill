@@ -7,6 +7,49 @@ breaking changes between minor versions.
 
 ## [Unreleased]
 
+## [0.4.0] — 2026-04-27
+
+The "Linux compatibility round-out" — three additive changes that bring
+Quill from "works on Linux if you're on the right config" to "works on
+every Linux desktop, with installation as easy as the rest of the
+ecosystem." Nothing here changes the experience on Windows, macOS, X11,
+GNOME 48+, or KDE Plasma 6+ — it's pure additive coverage for everyone
+else.
+
+### Added
+
+- **Flatpak / Flathub manifest** (`flatpak/com.lauta.quill.yml`) builds
+  the entire stack — whisper.cpp v1.7.6, Silero VAD, libxdo, the
+  libayatana-appindicator chain, and the Quill app itself — inside a
+  Freedesktop Sdk 24.08 sandbox. Once submitted to Flathub, every Linux
+  user can install via `flatpak install flathub com.lauta.quill`
+  regardless of distro. Includes the AppStream metadata and XDG desktop
+  entry required for software-center discovery.
+- **Wizard adaptive setup card** — the permissions step now detects the
+  user's Wayland compositor (GNOME version via `gnome-shell --version`,
+  KDE Plasma version via `KDE_SESSION_VERSION`, or any Sway / Hyprland
+  / wlroots variant via `XDG_CURRENT_DESKTOP`) and surfaces a copyable
+  `sudo usermod -aG input $USER` instruction only on configs that lack
+  the GlobalShortcuts portal. New `LinuxEnvironment` struct + Tauri
+  command back the detection. Users on supported configs see no
+  change; users on Sway / Hyprland / KDE Plasma 5 / GNOME ≤ 47 finally
+  see *why* the hotkey fallback needs the extra step.
+- **Hybrid feedback on Wayland** — for the two transcription states
+  where the user has to *act* (`ClipboardOnly` and `Error`), Quill now
+  also fires a native desktop notification via the
+  `org.freedesktop.Notifications` D-Bus interface, in addition to the
+  pill overlay. Solves the "where did the pill end up?" problem on
+  compositor-managed Wayland sessions where `set_position` is
+  silently ignored. X11 sessions and the regular record / transcribe /
+  inject path are unchanged.
+
+### Changed
+
+- Multi-segment `XDG_CURRENT_DESKTOP` values (e.g. Ubuntu's
+  `"ubuntu:GNOME"`) are now matched against every segment instead of
+  only the first, fixing a pre-detection blind spot on Ubuntu and
+  Pop!_OS where the wizard wouldn't have recognized GNOME at all.
+
 ## [0.3.0] — 2026-04-27
 
 The "transcription quality pack" — three orthogonal improvements to how
