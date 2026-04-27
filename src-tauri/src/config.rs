@@ -2,7 +2,7 @@ use serde::{Deserialize, Serialize};
 use std::path::Path;
 
 use crate::error::Result;
-use crate::types::{Engine, Keybind, Language, OverlayPosition, Substitution};
+use crate::types::{Engine, Keybind, Language, OverlayPosition, PromptPreset, Substitution};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Config {
@@ -38,10 +38,54 @@ pub struct Config {
     /// prompt-biasing in `vocabulary` couldn't fix.
     #[serde(default)]
     pub substitutions: Vec<Substitution>,
+    /// Available prompt presets (built-in + user-created). The active one
+    /// has its `prompt` concatenated with `vocabulary` and passed to
+    /// Whisper at transcribe time. `#[serde(default = ...)]` seeds the
+    /// 4 built-ins on first run / on existing configs that pre-date this
+    /// field.
+    #[serde(default = "default_presets")]
+    pub presets: Vec<PromptPreset>,
+    /// Currently selected preset ID. `None` means "no preset, use only
+    /// the global vocabulary as the Whisper prompt" — preserves the
+    /// pre-presets behavior for users who don't opt in.
+    #[serde(default)]
+    pub active_preset_id: Option<String>,
 }
 
 fn default_vad_enabled() -> bool {
     true
+}
+
+/// Built-in prompt presets shipped with every fresh install. Order
+/// matches what the user sees in the tray submenu / Settings list.
+pub fn default_presets() -> Vec<PromptPreset> {
+    vec![
+        PromptPreset::builtin(
+            "general",
+            "General",
+            "Hola, buen día. Vamos a ver qué tal funciona esto.",
+        ),
+        PromptPreset::builtin(
+            "code",
+            "Código",
+            "Estoy escribiendo código en Python o Rust. Identificadores en \
+             snake_case y camelCase. Términos comunes: async, await, fn, \
+             struct, return, import, function, const, let, if, else.",
+        ),
+        PromptPreset::builtin(
+            "email",
+            "Email",
+            "Estimado equipo, les escribo para hacer seguimiento sobre el \
+             tema que conversamos. Por otro lado, quería comentarles. \
+             Quedamos en contacto. Saludos cordiales,",
+        ),
+        PromptPreset::builtin(
+            "casual",
+            "Casual",
+            "Che, mirá, lo que pasa es que. La verdad, no sé bien. Bueno, \
+             te cuento. Dale, hablamos después. Posta. Ojalá que sí.",
+        ),
+    ]
 }
 
 impl Default for Config {
@@ -65,6 +109,40 @@ impl Default for Config {
             wayland_remotedesktop_token: None,
             vad_enabled: default_vad_enabled(),
             substitutions: Vec::new(),
+            presets: default_presets(),
+            active_preset_id: None,
+        }
+    }
+}
+
+impl Config {
+    /// Compose the final Whisper prompt to pass to the engine: the active
+    /// preset's text (if any) plus the global `vocabulary`, truncated
+    /// together to a safe character budget.
+    ///
+    /// Whisper's decoder accepts ~224 tokens of prompt context. We
+    /// approximate at the char level (4 chars/token rule of thumb → 880
+    /// chars). When both preset and vocabulary are present and the
+    /// concatenation overflows, the suffix (vocabulary) is what gets
+    /// truncated — preserves the preset's tone/style framing.
+    pub fn active_prompt(&self) -> String {
+        const MAX_CHARS: usize = 880;
+        let preset_prompt: Option<&str> = self.active_preset_id.as_deref().and_then(|id| {
+            self.presets
+                .iter()
+                .find(|p| p.id == id)
+                .map(|p| p.prompt.as_str())
+        });
+        let raw = match (preset_prompt, self.vocabulary.is_empty()) {
+            (None, true) => return String::new(),
+            (None, false) => self.vocabulary.clone(),
+            (Some(p), true) => p.to_string(),
+            (Some(p), false) => format!("{} {}", p, self.vocabulary),
+        };
+        if raw.chars().count() <= MAX_CHARS {
+            raw
+        } else {
+            raw.chars().take(MAX_CHARS).collect()
         }
     }
 }

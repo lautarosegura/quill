@@ -19,6 +19,7 @@
 		'/main': 'historial',
 		'/main/settings': 'settings',
 		'/main/vocabulario': 'vocabulario',
+		'/main/presets': 'presets',
 		'/main/modelos': 'modelos',
 		'/main/uso': 'uso'
 	};
@@ -27,6 +28,7 @@
 		historial: '/main',
 		settings: '/main/settings',
 		vocabulario: '/main/vocabulario',
+		presets: '/main/presets',
 		modelos: '/main/modelos',
 		uso: '/main/uso'
 	};

@@ -104,5 +104,40 @@ pub struct Substitution {
     pub case_sensitive: bool,
 }
 
+/// User-switchable Whisper prompt preset. Lets the user bias transcription
+/// for different contexts ("Email" → formal punctuation, "Código" →
+/// snake_case identifiers, "Casual" → contractions and lunfardo) without
+/// editing the global vocabulary every time.
+///
+/// At transcribe time the active preset's `prompt` is concatenated with
+/// `Config::vocabulary` (truncated together to ~220 tokens). They coexist
+/// rather than replace each other: preset = tone, vocabulary = words.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct PromptPreset {
+    /// Stable identifier ("general", "code", "email", "casual"). Used as
+    /// `Config::active_preset_id` and as the key for tray-menu lookups.
+    pub id: String,
+    /// User-visible label ("Modo email").
+    pub name: String,
+    /// The Whisper-decoder prompt — usually 1-3 sentences of the target
+    /// style + a handful of representative words.
+    pub prompt: String,
+    /// Built-in (shipped with the app, can be edited but not deleted)
+    /// vs user-created (full lifecycle).
+    #[serde(default)]
+    pub builtin: bool,
+}
+
+impl PromptPreset {
+    pub fn builtin(id: &str, name: &str, prompt: &str) -> Self {
+        Self {
+            id: id.to_string(),
+            name: name.to_string(),
+            prompt: prompt.to_string(),
+            builtin: true,
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests;

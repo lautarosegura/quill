@@ -1,5 +1,5 @@
 <script lang="ts" module>
-	export type NavId = 'historial' | 'settings' | 'vocabulario' | 'modelos' | 'uso';
+	export type NavId = 'historial' | 'settings' | 'vocabulario' | 'presets' | 'modelos' | 'uso';
 </script>
 
 <script lang="ts">
@@ -30,6 +30,9 @@
 		{ id: 'historial', label: 'Historial', Icon: IconHistory },
 		{ id: 'settings', label: 'Ajustes', Icon: IconSettings },
 		{ id: 'vocabulario', label: 'Vocabulario', Icon: IconVocab },
+		// Reuse the Vocabulario icon — Claude Design will swap it for a
+		// preset-specific glyph in the redesign pass.
+		{ id: 'presets', label: 'Presets', Icon: IconVocab },
 		{ id: 'modelos', label: 'Modelos', Icon: IconModels },
 		{ id: 'uso', label: 'Uso', Icon: IconUsage }
 	];

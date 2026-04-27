@@ -283,7 +283,9 @@
 			vocabulary: '',
 			monthly_cost_alert_usd: null,
 			wizard_version: config.value?.wizard_version ?? 1,
-			substitutions: []
+			substitutions: [],
+			presets: config.value?.presets ?? [],
+			active_preset_id: null
 		});
 	}
 </script>

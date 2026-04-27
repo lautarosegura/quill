@@ -22,6 +22,13 @@ export interface Substitution {
 	case_sensitive: boolean;
 }
 
+export interface PromptPreset {
+	id: string;
+	name: string;
+	prompt: string;
+	builtin: boolean;
+}
+
 export interface Config {
 	language: Language;
 	engine: Engine;
@@ -39,6 +46,8 @@ export interface Config {
 	monthly_cost_alert_usd: number | null;
 	wizard_version: number;
 	substitutions: Substitution[];
+	presets: PromptPreset[];
+	active_preset_id: string | null;
 }
 
 export interface SerializableError {
