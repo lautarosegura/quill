@@ -1,0 +1,111 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  AppStream metadata for Quill. Required by Flathub for app discovery in
+  GNOME Software / KDE Discover / etc. Validated by appstreamcli at build
+  time during flatpak-builder.
+
+  Schema: https://www.freedesktop.org/software/appstream/docs/
+-->
+<component type="desktop-application">
+  <id>com.lauta.quill</id>
+  <name>Quill</name>
+  <summary>Voice-to-text dictation</summary>
+  <summary xml:lang="es">Dictado de voz a texto</summary>
+
+  <metadata_license>CC0-1.0</metadata_license>
+  <project_license>MIT OR Apache-2.0</project_license>
+
+  <description>
+    <p>
+      Quill is a privacy-first dictation app. Hold a hotkey, speak, release —
+      the transcript appears wherever your cursor is. Runs Whisper locally
+      (private, offline) or via Groq Cloud (fast, low cost).
+    </p>
+    <p xml:lang="es">
+      Quill es una app de dictado privacy-first. Mantenés un atajo, hablás,
+      soltás — el texto aparece donde esté tu cursor. Corre Whisper localmente
+      (privado, offline) o via Groq Cloud (rápido, barato).
+    </p>
+    <p>Highlights:</p>
+    <ul>
+      <li>Push-to-talk + double-tap-lock for hands-free recording</li>
+      <li>Local engine with downloadable Whisper models (tiny → large-v3)</li>
+      <li>Groq Cloud engine for sub-second latency</li>
+      <li>Transcription-quality features: Silero VAD pre-processing, custom prompt presets, vocabulary post-substitution</li>
+      <li>Searchable history of every transcription stored locally</li>
+      <li>Wayland-native via XDG portals (RemoteDesktop + GlobalShortcuts)</li>
+    </ul>
+  </description>
+
+  <launchable type="desktop-id">com.lauta.quill.desktop</launchable>
+
+  <url type="homepage">https://github.com/lautarosegura/quill</url>
+  <url type="bugtracker">https://github.com/lautarosegura/quill/issues</url>
+  <url type="vcs-browser">https://github.com/lautarosegura/quill</url>
+
+  <developer id="com.lauta">
+    <name>Lautaro Segura</name>
+  </developer>
+
+  <categories>
+    <category>Utility</category>
+    <category>Audio</category>
+    <category>Office</category>
+  </categories>
+
+  <keywords>
+    <keyword>dictation</keyword>
+    <keyword>speech-to-text</keyword>
+    <keyword>voice</keyword>
+    <keyword>transcription</keyword>
+    <keyword>whisper</keyword>
+    <keyword xml:lang="es">dictado</keyword>
+  </keywords>
+
+  <content_rating type="oars-1.1" />
+
+  <supports>
+    <control>keyboard</control>
+    <control>pointing</control>
+  </supports>
+
+  <screenshots>
+    <screenshot type="default">
+      <caption>Recording overlay shown over a focused application</caption>
+      <image>https://raw.githubusercontent.com/lautarosegura/quill/main/docs/assets/banner.png</image>
+    </screenshot>
+  </screenshots>
+
+  <branding>
+    <color type="primary" scheme_preference="light">#a78bfa</color>
+    <color type="primary" scheme_preference="dark">#5b3fd8</color>
+  </branding>
+
+  <releases>
+    <release version="0.3.0" date="2026-04-27">
+      <description>
+        <p>Transcription quality pack — Silero VAD pre-processing, vocabulary post-substitution, custom prompt presets (General, Código, Email, Casual + custom), polished UI from the Claude Design v0.3.0 bundle.</p>
+      </description>
+    </release>
+    <release version="0.2.2" date="2026-04-24">
+      <description>
+        <p>Wayland round-out — Spanish pill labels on all platforms, state-aware tray tooltip, persistent RemoteDesktop restore token (no more consent dialog every launch).</p>
+      </description>
+    </release>
+    <release version="0.2.1" date="2026-04-24">
+      <description>
+        <p>Linux bug-fix release — wizard wizard_version persistence, wl-clipboard-rs for Wayland clipboard, libei auto-paste via XDG RemoteDesktop, dual hotkey backend (portal + evdev fallback).</p>
+      </description>
+    </release>
+    <release version="0.2.0" date="2026-04-23">
+      <description>
+        <p>Linux support lands. X11 + Wayland sessions, .deb / .AppImage / .rpm installers alongside Windows NSIS + MSI.</p>
+      </description>
+    </release>
+    <release version="0.1.0" date="2026-04-23">
+      <description>
+        <p>First public release. Windows-only, push-to-talk dictation with local + Groq Cloud engines.</p>
+      </description>
+    </release>
+  </releases>
+</component>
