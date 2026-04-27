@@ -7,6 +7,14 @@ export type Platform = 'windows' | 'macos' | 'linux';
  *  means we route through the XDG portal + clipboard-only paste fallback. */
 export type DisplayServer = 'windows' | 'macos' | 'x11' | 'wayland';
 
+/** Mirrors `display_server::LinuxEnvironment` — the wizard uses this to decide
+ *  whether to surface the "add yourself to the input group" setup card. */
+export type LinuxEnvironment = {
+	display_server: DisplayServer;
+	desktop: string;
+	gnome_version: number | null;
+};
+
 /**
  * Detect platform from the webview's user agent. Runs synchronously so modules
  * that import this store can read `platform.value` immediately without waiting
@@ -28,6 +36,7 @@ const _value: Platform = detect();
 // need it call `initDisplayServer()` on mount (or read `platform.isWayland`,
 // which is null-safe before resolution).
 let _displayServer = $state<DisplayServer | null>(null);
+let _linuxEnv = $state<LinuxEnvironment | null>(null);
 
 export const platform = {
 	get value(): Platform {
@@ -50,6 +59,9 @@ export const platform = {
 	 *  show Wayland-specific UX should await the init first. */
 	get isWayland(): boolean {
 		return _displayServer === 'wayland';
+	},
+	get linuxEnvironment(): LinuxEnvironment | null {
+		return _linuxEnv;
 	}
 };
 
@@ -64,4 +76,38 @@ export async function initDisplayServer(): Promise<DisplayServer> {
 		_displayServer = _value === 'linux' ? 'x11' : _value;
 	}
 	return _displayServer;
+}
+
+/** Resolves and caches the user's Linux compositor + GNOME version. Returns
+ *  null on non-Linux platforms (the backend command itself returns null
+ *  there). Safe to call multiple times. */
+export async function initLinuxEnvironment(): Promise<LinuxEnvironment | null> {
+	if (_linuxEnv !== null) return _linuxEnv;
+	if (_value !== 'linux') return null;
+	try {
+		_linuxEnv = await invoke<LinuxEnvironment | null>('get_linux_environment');
+	} catch {
+		_linuxEnv = null;
+	}
+	return _linuxEnv;
+}
+
+/** True iff the current Linux compositor lacks portal-based hotkey support
+ *  (GNOME pre-48, Sway, Hyprland, wlroots-based) — i.e. the wizard should
+ *  surface the "add yourself to the input group" card. Returns false on
+ *  X11, on Windows / macOS, on GNOME 48+, on KDE Plasma 6+, and before
+ *  `initLinuxEnvironment()` has resolved. */
+export function needsInputGroupSetup(env: LinuxEnvironment | null): boolean {
+	if (!env) return false;
+	if (env.display_server !== 'wayland') return false;
+	const desktop = env.desktop.toLowerCase();
+	// GNOME 48+ has the GlobalShortcuts portal — zero config.
+	if (desktop === 'gnome') return (env.gnome_version ?? 0) < 48;
+	// KDE Plasma 6 also ships the portal. We can't easily get the major
+	// version, but Plasma 6 has been stable since Feb 2024 and is the
+	// default everywhere — assume modern.
+	if (desktop === 'kde') return false;
+	// Everything else (Sway, Hyprland, wlroots, Cinnamon, MATE…) needs
+	// the rdev evdev fallback, which requires the input group.
+	return true;
 }

@@ -92,6 +92,7 @@ pub fn run() {
             commands::history::retry_history_entry,
             commands::hardware::detect_hardware,
             commands::platform::get_display_server,
+            commands::platform::get_linux_environment,
             commands::models::list_known_models,
             commands::models::download_model,
             commands::models::delete_model,
