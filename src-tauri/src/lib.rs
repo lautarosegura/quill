@@ -323,6 +323,8 @@ async fn bootstrap_dictation(
     std::mem::forget(hotkey_mgr);
 
     spawn_overlay_visibility(app.clone());
+    #[cfg(target_os = "linux")]
+    spawn_wayland_state_notifier(app.clone());
     beeps::spawn_beep_listener(app.clone(), Arc::clone(&config));
 
     tauri::async_runtime::spawn(async move {
@@ -405,6 +407,56 @@ fn spawn_overlay_visibility(app: tauri::AppHandle) {
                 // so show() does not steal focus from the user's target app.
                 let _ = overlay.show();
             }
+        }
+    });
+}
+
+/// Hybrid feedback layer for Wayland sessions: the pill overlay still shows,
+/// but its position is compositor-managed and easy to miss. For the two
+/// states where the user has to *act* — ClipboardOnly (press Ctrl+V) and
+/// Error (something failed) — we also fire a native desktop notification
+/// via the Tauri notification plugin. On Linux that goes through
+/// `org.freedesktop.Notifications` D-Bus, so it lands in the user's
+/// regular notification stack regardless of where the pill ended up on
+/// screen.
+///
+/// No-op on X11 (where the pill is reliably positioned) and on non-Linux.
+#[cfg(target_os = "linux")]
+fn spawn_wayland_state_notifier(app: tauri::AppHandle) {
+    use tauri::Listener;
+
+    if !crate::display_server::DisplayServer::detect().is_wayland() {
+        return;
+    }
+
+    let notifier_app = app.clone();
+    app.listen(events::TRANSCRIPTION_STATE_CHANGED, move |event| {
+        use tauri_plugin_notification::NotificationExt;
+
+        let Ok(state) = serde_json::from_str::<events::TranscriptionState>(event.payload()) else {
+            return;
+        };
+
+        let (title, body) = match state {
+            events::TranscriptionState::ClipboardOnly { .. } => (
+                "Quill",
+                "Texto copiado al portapapeles. Apretá Ctrl+V para pegar.".to_string(),
+            ),
+            events::TranscriptionState::Error { message } => ("Quill — error", message),
+            // Recording / Transcribing / Injecting / Cancelled / Idle would
+            // be too noisy as native notifications — the pill (or tray
+            // tooltip) is enough for those.
+            _ => return,
+        };
+
+        if let Err(e) = notifier_app
+            .notification()
+            .builder()
+            .title(title)
+            .body(body)
+            .show()
+        {
+            log::warn!("wayland state notification failed: {e}");
         }
     });
 }
