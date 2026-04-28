@@ -14,6 +14,7 @@ pub mod hardware;
 pub mod history;
 pub mod hotkey;
 pub mod injector;
+pub mod llm_polish;
 pub mod mic_test;
 pub mod models;
 pub mod orchestrator;
@@ -42,6 +43,7 @@ use crate::engines::local::LocalEngine;
 use crate::engines::TranscriptionEngine;
 use crate::history::HistoryStore;
 use crate::hotkey::HotkeyManager;
+use crate::llm_polish::LlmPolishDispatcher;
 use crate::mic_test::MicTestController;
 use crate::orchestrator::{AppOrchestrator, EventEmitter, Notifier};
 use crate::secrets::SecretStore;
@@ -51,6 +53,10 @@ use crate::secrets::SecretStore;
 pub struct AppState {
     pub config: Arc<RwLock<Config>>,
     pub dispatch: Arc<DispatchingEngine>,
+    /// LLM polish provider clients, swapped at runtime when the user
+    /// configures / removes per-provider API keys. Independent of the
+    /// transcription dispatcher (different lifecycle).
+    pub polish_dispatch: Arc<LlmPolishDispatcher>,
     pub history: Arc<HistoryStore>,
     /// Live-mic probe for the Settings VU meter. Commands start/stop it;
     /// the controller owns a std thread + cpal input stream internally.
@@ -98,6 +104,12 @@ pub fn run() {
             commands::models::delete_model,
             commands::usage::get_usage_stats,
             commands::wizard::finish_wizard,
+            commands::llm_polish::get_llm_polish_key_masked,
+            commands::llm_polish::set_llm_polish_key,
+            commands::llm_polish::delete_llm_polish_key,
+            commands::llm_polish::test_llm_polish_key,
+            commands::llm_polish::test_llm_polish,
+            commands::llm_polish::list_llm_polish_models,
         ])
         .setup(|app| {
             if cfg!(debug_assertions) {
@@ -186,6 +198,7 @@ pub fn run() {
             // from Settings/Modelos takes effect without a restart.
             let local_engine = Arc::new(LocalEngine::from_dir(sidecar_dir, Arc::clone(&config)));
             let dispatch = Arc::new(DispatchingEngine::new(local_engine, Arc::clone(&config)));
+            let polish_dispatch = Arc::new(LlmPolishDispatcher::new(Arc::clone(&config)));
 
             // Pre-populate Groq engine if a key is in the keychain.
             {
@@ -199,6 +212,36 @@ pub fn run() {
                     if let Ok(Some(key)) = SecretStore::get_groq_key() {
                         if let Ok(g) = GroqEngine::new_with_model(key, groq_model) {
                             dispatch.set_groq(Some(Arc::new(g))).await;
+                        }
+                    }
+                });
+            }
+
+            // Pre-populate LLM polish providers for any keys already in the
+            // keychain. Each provider has its own keychain slot; missing
+            // slots leave the dispatcher's slot as None and the dispatcher
+            // returns NotConfigured at polish time.
+            {
+                let polish_dispatch = Arc::clone(&polish_dispatch);
+                tauri::async_runtime::block_on(async move {
+                    use crate::llm_polish::{
+                        anthropic::AnthropicLlmPolisher, groq::GroqLlmPolisher,
+                        openai::OpenaiLlmPolisher,
+                    };
+                    use crate::types::LlmProvider;
+                    if let Ok(Some(key)) = SecretStore::get_llm_key(LlmProvider::Groq) {
+                        if let Ok(p) = GroqLlmPolisher::new(key) {
+                            polish_dispatch.set_groq(Some(Arc::new(p))).await;
+                        }
+                    }
+                    if let Ok(Some(key)) = SecretStore::get_llm_key(LlmProvider::Anthropic) {
+                        if let Ok(p) = AnthropicLlmPolisher::new(key) {
+                            polish_dispatch.set_anthropic(Some(Arc::new(p))).await;
+                        }
+                    }
+                    if let Ok(Some(key)) = SecretStore::get_llm_key(LlmProvider::Openai) {
+                        if let Ok(p) = OpenaiLlmPolisher::new(key) {
+                            polish_dispatch.set_openai(Some(Arc::new(p))).await;
                         }
                     }
                 });
@@ -221,13 +264,17 @@ pub fn run() {
             app.manage(AppState {
                 config: Arc::clone(&config),
                 dispatch: Arc::clone(&dispatch),
+                polish_dispatch: Arc::clone(&polish_dispatch),
                 history: Arc::clone(&history),
                 mic_test: Arc::new(StdMutex::new(MicTestController::new())),
             });
 
             let app_handle = app.handle().clone();
             tauri::async_runtime::spawn(async move {
-                if let Err(e) = bootstrap_dictation(app_handle, dispatch, config, history).await {
+                if let Err(e) =
+                    bootstrap_dictation(app_handle, dispatch, polish_dispatch, config, history)
+                        .await
+                {
                     log::error!("dictation bootstrap failed: {e}");
                 }
             });
@@ -303,6 +350,7 @@ fn sidecar_exe_name() -> String {
 async fn bootstrap_dictation(
     app: tauri::AppHandle,
     dispatch: Arc<DispatchingEngine>,
+    polish_dispatch: Arc<LlmPolishDispatcher>,
     config: Arc<RwLock<Config>>,
     history: Arc<HistoryStore>,
 ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
@@ -314,7 +362,8 @@ async fn bootstrap_dictation(
     let orchestrator = Arc::new(
         AppOrchestrator::new(emitter, engine, recorder, Arc::clone(&config))
             .with_history(history)
-            .with_notifier(notifier),
+            .with_notifier(notifier)
+            .with_polish_dispatcher(polish_dispatch),
     );
 
     let (hotkey_mgr, hotkey_rx) = HotkeyManager::start(Arc::clone(&config));

@@ -27,6 +27,7 @@ use crate::failed_wav;
 use crate::history::{HistoryStore, NewHistoryEntry};
 use crate::hotkey::HotkeyEvent;
 use crate::injector::{InjectOutcome, TextInjector};
+use crate::llm_polish::LlmPolishDispatcher;
 use crate::post_process;
 use crate::types::Engine;
 
@@ -113,6 +114,10 @@ pub struct AppOrchestrator {
     pub history: Option<Arc<HistoryStore>>,
     /// Optional to keep tests decoupled from the Tauri notification plugin.
     pub notifier: Option<Arc<dyn Notifier>>,
+    /// Optional cloud LLM polish stage. When `None` (or when the user has
+    /// `llm_polish_enabled = false`), the pipeline skips polish entirely
+    /// and behaves identically to v0.4.0.
+    pub polish_dispatcher: Option<Arc<LlmPolishDispatcher>>,
     session: Arc<Mutex<SessionState>>,
 }
 
@@ -130,6 +135,7 @@ impl AppOrchestrator {
             config,
             history: None,
             notifier: None,
+            polish_dispatcher: None,
             session: Arc::new(Mutex::new(SessionState::default())),
         }
     }
@@ -141,6 +147,11 @@ impl AppOrchestrator {
 
     pub fn with_notifier(mut self, notifier: Arc<dyn Notifier>) -> Self {
         self.notifier = Some(notifier);
+        self
+    }
+
+    pub fn with_polish_dispatcher(mut self, dispatcher: Arc<LlmPolishDispatcher>) -> Self {
+        self.polish_dispatcher = Some(dispatcher);
         self
     }
 
@@ -413,6 +424,23 @@ impl AppOrchestrator {
             self.reset_session().await;
             return;
         }
+
+        // Optional LLM polish stage. Runs AFTER vocabulary substitution so
+        // user-defined replacements always take precedence (deterministic,
+        // free, predictable). The polish call adds 200-2000ms; users opt
+        // in explicitly via Settings. On any failure we degrade silently
+        // to the unpolished text — never punish dictation for a flaky API.
+        let text = if let Some(polish) = &self.polish_dispatcher {
+            match polish.polish_active(&text).await {
+                Ok(polished) => polished,
+                Err(e) => {
+                    log::warn!("llm_polish failed, using unpolished text: {e}");
+                    text
+                }
+            }
+        } else {
+            text
+        };
 
         self.emit(TranscriptionState::Injecting);
         match TextInjector::inject(&text).await {
