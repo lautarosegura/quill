@@ -1,8 +1,11 @@
 use serde::{Deserialize, Serialize};
+use std::collections::BTreeMap;
 use std::path::Path;
 
 use crate::error::Result;
-use crate::types::{Engine, Keybind, Language, OverlayPosition, PromptPreset, Substitution};
+use crate::types::{
+    Engine, Keybind, Language, LlmProvider, OverlayPosition, PromptPreset, Substitution,
+};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Config {
@@ -50,10 +53,65 @@ pub struct Config {
     /// pre-presets behavior for users who don't opt in.
     #[serde(default)]
     pub active_preset_id: Option<String>,
+    /// Master toggle for the optional LLM polish stage. Off by default —
+    /// the feature is opt-in. When true, the orchestrator pipes the
+    /// post-substituted text through the active provider's chat endpoint
+    /// before injecting.
+    #[serde(default)]
+    pub llm_polish_enabled: bool,
+    /// Which cloud LLM provider runs the polish call. Independent of the
+    /// transcription engine — a user can transcribe locally + polish via
+    /// Groq, or vice versa.
+    #[serde(default = "default_llm_polish_provider")]
+    pub llm_polish_provider: LlmProvider,
+    /// Per-provider chosen model. Stored as a map so switching the active
+    /// provider doesn't lose each provider's model preference.
+    /// `BTreeMap` (not HashMap) for deterministic JSON output.
+    #[serde(default = "default_llm_polish_models")]
+    pub llm_polish_models: BTreeMap<LlmProvider, String>,
+    /// User-editable system prompt sent to the LLM. Default is a terse
+    /// "remove muletillas, fix punctuation, don't change words" instruction
+    /// in Spanish.
+    #[serde(default = "default_llm_polish_system_prompt")]
+    pub llm_polish_system_prompt: String,
+    /// Safety cap. Texts longer than this many chars skip the polish call
+    /// to avoid runaway costs. 8000 is conservative — typical dictations
+    /// are <500 chars.
+    #[serde(default = "default_llm_polish_max_input_chars")]
+    pub llm_polish_max_input_chars: u32,
 }
 
 fn default_vad_enabled() -> bool {
     true
+}
+
+fn default_llm_polish_provider() -> LlmProvider {
+    LlmProvider::Groq
+}
+
+/// Recommended models per provider, seeded into fresh configs and used as
+/// fallback when a provider has no entry in `llm_polish_models`. Update
+/// these when the provider's pricing/quality balance shifts.
+fn default_llm_polish_models() -> BTreeMap<LlmProvider, String> {
+    let mut m = BTreeMap::new();
+    m.insert(LlmProvider::Groq, "llama-3.3-70b-versatile".to_string());
+    m.insert(
+        LlmProvider::Anthropic,
+        "claude-haiku-4-5-20251001".to_string(),
+    );
+    m.insert(LlmProvider::Openai, "gpt-4o-mini".to_string());
+    m
+}
+
+fn default_llm_polish_system_prompt() -> String {
+    "Limpiá esta transcripción dictada por voz: remové muletillas (eh, mm, este, o sea), \
+     agregá puntuación si falta, y unificá mayúsculas. NO cambies palabras, NO cambies el \
+     sentido, NO traduzcas. Devolvé sólo el texto limpio, sin comentarios ni explicaciones."
+        .to_string()
+}
+
+fn default_llm_polish_max_input_chars() -> u32 {
+    8000
 }
 
 /// Built-in prompt presets shipped with every fresh install. Order
@@ -111,6 +169,11 @@ impl Default for Config {
             substitutions: Vec::new(),
             presets: default_presets(),
             active_preset_id: None,
+            llm_polish_enabled: false,
+            llm_polish_provider: default_llm_polish_provider(),
+            llm_polish_models: default_llm_polish_models(),
+            llm_polish_system_prompt: default_llm_polish_system_prompt(),
+            llm_polish_max_input_chars: default_llm_polish_max_input_chars(),
         }
     }
 }

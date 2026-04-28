@@ -4,6 +4,7 @@ pub mod dictation;
 pub mod groq;
 pub mod hardware;
 pub mod history;
+pub mod llm_polish;
 pub mod models;
 pub mod platform;
 pub mod usage;

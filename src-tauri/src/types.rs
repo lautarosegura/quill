@@ -30,6 +30,39 @@ pub enum Engine {
     Groq,
 }
 
+/// Cloud LLM providers used by the optional post-transcription polish stage.
+/// Each provider has its own API key (stored in the OS keychain) and its
+/// own preferred model (stored in `Config.llm_polish_models`).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Ord, PartialOrd, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum LlmProvider {
+    Groq,
+    Anthropic,
+    Openai,
+}
+
+impl LlmProvider {
+    /// Keychain account name used to store this provider's API key. Each
+    /// provider gets its own slot — picking one provider doesn't reveal
+    /// keys for the others, and revoking one key doesn't affect the rest.
+    pub fn key_id(&self) -> &'static str {
+        match self {
+            LlmProvider::Groq => "groq_llm_key",
+            LlmProvider::Anthropic => "anthropic_llm_key",
+            LlmProvider::Openai => "openai_llm_key",
+        }
+    }
+
+    /// Human-facing label for UI summaries.
+    pub fn label(&self) -> &'static str {
+        match self {
+            LlmProvider::Groq => "Groq",
+            LlmProvider::Anthropic => "Anthropic",
+            LlmProvider::Openai => "OpenAI",
+        }
+    }
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case")]
 pub enum OverlayPosition {
