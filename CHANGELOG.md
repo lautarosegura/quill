@@ -7,6 +7,27 @@ breaking changes between minor versions.
 
 ## [Unreleased]
 
+## [0.5.1] — 2026-04-29
+
+Quick patch addressing a usability bug surfaced after v0.5.0 testing.
+
+### Fixed
+
+- **Silent captures no longer produce hallucinated transcriptions.** A
+  quick accidental hotkey tap (or holding the key without speaking) was
+  feeding Whisper near-empty audio, which would hallucinate filler text
+  like "thanks for watching" or "you". Two layered fixes:
+  - Default `min_duration_ms` raised from 250 → 400ms so accidental
+    quick-taps are discarded before transcription. Existing installs
+    keep their stored value.
+  - New audio energy gate in the orchestrator: `AudioRecorder::stop_recording`
+    now returns an `AudioCapture` with `peak`, `rms`, and `duration_ms`
+    alongside the WAV bytes. Captures with `peak < 0.02` (~-34 dBFS)
+    skip transcription entirely and the pill returns to Idle. Peak
+    (not RMS) is the discriminator because short words like "OK" have
+    a low RMS — most of their 300ms is silence between phonemes — but
+    a high peak when the user vocalizes.
+
 ## [0.5.0] — 2026-04-28
 
 The "LLM polish" pack — an opt-in cleanup stage that runs after Whisper

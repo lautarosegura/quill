@@ -82,6 +82,11 @@
   </branding>
 
   <releases>
+    <release version="0.5.1" date="2026-04-29">
+      <description>
+        <p>Patch release — silent captures no longer trigger Whisper hallucinations. Two layered fixes: bumped the default minimum recording duration from 250 to 400ms, and added an audio energy gate that skips transcription when the captured audio has no voice activity (peak amplitude below ~-34 dBFS).</p>
+      </description>
+    </release>
     <release version="0.5.0" date="2026-04-28">
       <description>
         <p>LLM polish pack — opt-in post-transcription cleanup via Groq, Anthropic, or OpenAI. Off by default. New Settings accordion with provider switcher, per-provider API key, model dropdown, editable system prompt, and a live preview pane with word-level diff highlights.</p>
