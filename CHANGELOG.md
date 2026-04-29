@@ -7,6 +7,59 @@ breaking changes between minor versions.
 
 ## [Unreleased]
 
+## [0.5.0] — 2026-04-28
+
+The "LLM polish" pack — an opt-in cleanup stage that runs after Whisper
+transcription and before injection. Removes muletillas (eh, mm, o sea),
+normalizes punctuation, and produces text that reads like writing
+instead of speaking — without touching meaning, vocabulary, or
+rewriting style. Off by default. Pure addition over v0.4.0.
+
+### Added
+
+- **Three cloud LLM providers** — Groq, Anthropic, OpenAI. Each has its
+  own keychain slot and its own preferred model. Switching providers is
+  a config write, not an API call. Local LLM via llama.cpp sidecar is
+  deferred to v0.6+ (would duplicate the whisper-cli pattern).
+- **New Settings accordion: "Pulido con IA"** — third section, after
+  "Motor de transcripción". Master toggle, segmented provider switcher
+  with brand-tinted active dots + green "configured" pip per provider,
+  per-provider API key panel with 4 states (empty / editing / saved /
+  invalid), model dropdown with one-line blurbs, editable system prompt
+  textarea (max 2000 chars, debounced auto-save, "Restaurar default"),
+  and a live preview pane.
+- **Live preview pane** with input → arrow → output layout. Renders an
+  inline word-level diff with `.diff-add` / `.diff-rem` highlights
+  (toggleable via "Resaltar cambios"), latency + token counts in
+  monospace metadata, and dedicated error states (network /
+  unauthorized / rate-limit) — surfaced in the preview, never
+  in the dictation pipeline.
+- **Pipeline integration** in `orchestrator.rs`: polish runs after
+  vocabulary substitution, before injection. When `llm_polish_enabled
+  = false` the call is a config-read no-op. On any failure (network,
+  auth, rate-limit) the orchestrator logs a warning and uses the
+  unpolished text — never punishes dictation for a flaky API.
+- **Six new Tauri commands** — `get/set/delete/test_llm_polish_key`,
+  `test_llm_polish` (preview), `list_llm_polish_models`. All
+  per-provider where applicable.
+- **21 unit tests** for the three providers (happy path, 401, 429,
+  500-class errors, timeouts, connection refused) using mocked HTTP
+  via `wiremock`. 4 dispatcher tests cover the toggle + provider
+  switching logic. 133 total tests pass.
+- **`IconSparkles`** added to the design system for the AI-touched
+  feature affordance.
+
+### Changed
+
+- `Config` gains five `#[serde(default)]`-gated fields:
+  `llm_polish_enabled`, `llm_polish_provider`, `llm_polish_models`,
+  `llm_polish_system_prompt`, `llm_polish_max_input_chars`. Existing
+  `~/.quill/config.json` files load unchanged.
+- `SecretStore` generalized into per-provider `get/set/delete_llm_key`
+  methods. The transcription Groq key (`groq_api_key`) is intentionally
+  separate from the polish Groq key (`groq_llm_key`) so the two roles
+  can be revoked independently.
+
 ## [0.4.0] — 2026-04-27
 
 The "Linux compatibility round-out" — three additive changes that bring

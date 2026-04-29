@@ -52,3 +52,4 @@ export { default as IconModels } from './icons/IconModels.svelte';
 export { default as IconUsage } from './icons/IconUsage.svelte';
 export { default as IconEye } from './icons/IconEye.svelte';
 export { default as IconEyeOff } from './icons/IconEyeOff.svelte';
+export { default as IconSparkles } from './icons/IconSparkles.svelte';
