@@ -45,3 +45,45 @@ fn wav_encode_produces_valid_header() {
     assert_eq!(&wav[8..12], b"WAVE");
     assert!(wav.len() > 44);
 }
+
+#[test]
+fn peak_and_rms_silence_is_zero() {
+    let silence = vec![0.0_f32; 16_000];
+    let (peak, rms) = peak_and_rms(&silence);
+    assert_eq!(peak, 0.0);
+    assert_eq!(rms, 0.0);
+}
+
+#[test]
+fn peak_and_rms_one_loud_sample_lifts_peak() {
+    // 16k samples of silence + one loud sample → peak should track the
+    // loud sample regardless of how short it is.
+    let mut buf = vec![0.0_f32; 16_000];
+    buf[100] = 0.7;
+    let (peak, rms) = peak_and_rms(&buf);
+    assert!((peak - 0.7).abs() < 1e-6);
+    // RMS is dominated by the silence, so it stays tiny.
+    assert!(rms < 0.01);
+}
+
+#[test]
+fn peak_and_rms_constant_amplitude() {
+    let buf = vec![0.5_f32; 1000];
+    let (peak, rms) = peak_and_rms(&buf);
+    assert!((peak - 0.5).abs() < 1e-6);
+    assert!((rms - 0.5).abs() < 1e-6);
+}
+
+#[test]
+fn peak_and_rms_negative_amplitude_uses_abs() {
+    let buf = vec![-0.3_f32; 100];
+    let (peak, _) = peak_and_rms(&buf);
+    assert!((peak - 0.3).abs() < 1e-6);
+}
+
+#[test]
+fn peak_and_rms_empty_returns_zero() {
+    let (peak, rms) = peak_and_rms(&[]);
+    assert_eq!(peak, 0.0);
+    assert_eq!(rms, 0.0);
+}

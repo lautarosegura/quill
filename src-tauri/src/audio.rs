@@ -94,7 +94,7 @@ impl AudioRecorder {
         st.active = true;
     }
 
-    pub fn stop_recording(&self) -> Result<Vec<u8>, QuillError> {
+    pub fn stop_recording(&self) -> Result<AudioCapture, QuillError> {
         let mut st = self.inner.lock().unwrap();
         st.active = false;
         let raw = std::mem::take(&mut st.capture);
@@ -102,8 +102,60 @@ impl AudioRecorder {
 
         let mono = downmix_to_mono(&raw, self.source_channels);
         let resampled = resample_linear(&mono, self.source_sample_rate, TARGET_SAMPLE_RATE);
-        encode_wav_f32_mono_16khz(&resampled)
+        let (peak, rms) = peak_and_rms(&resampled);
+        // Subtract the pre-roll (always present) from duration calculation —
+        // the user's intentional speech window starts at the start_recording
+        // call, not 150ms earlier.
+        let preroll_samples = (TARGET_SAMPLE_RATE as u64 * PRE_ROLL_MS as u64) / 1000;
+        let speech_samples = resampled.len().saturating_sub(preroll_samples as usize);
+        let duration_ms = (speech_samples as u64 * 1000) / TARGET_SAMPLE_RATE as u64;
+        let wav_bytes = encode_wav_f32_mono_16khz(&resampled)?;
+        Ok(AudioCapture {
+            wav_bytes,
+            peak,
+            rms,
+            duration_ms,
+        })
     }
+}
+
+/// Stats + bytes from a finished capture. The orchestrator inspects `peak`
+/// to gate transcription: a recording with no voice activity (e.g. an
+/// accidental hotkey tap) goes straight to Idle without burning a Whisper
+/// invocation that would hallucinate output from silence.
+#[derive(Debug, Clone)]
+pub struct AudioCapture {
+    pub wav_bytes: Vec<u8>,
+    /// Maximum absolute sample amplitude across the capture, in [0, 1].
+    /// Robust to short pauses between syllables (one loud sample lifts it),
+    /// so it cleanly distinguishes "no voice at all" from "I said one word".
+    pub peak: f32,
+    /// Root-mean-square amplitude across the whole capture, in [0, 1].
+    /// Lower than `peak` for any real speech because of inter-syllable
+    /// silence; useful for diagnostics but `peak` is what the silence
+    /// gate keys on.
+    pub rms: f32,
+    /// Speech duration in milliseconds, EXCLUDING the rolling pre-roll
+    /// the recorder always prepends. Reflects the user's intentional
+    /// hold time.
+    pub duration_ms: u64,
+}
+
+fn peak_and_rms(samples: &[f32]) -> (f32, f32) {
+    if samples.is_empty() {
+        return (0.0, 0.0);
+    }
+    let mut peak: f32 = 0.0;
+    let mut sum_sq: f64 = 0.0;
+    for &s in samples {
+        let a = s.abs();
+        if a > peak {
+            peak = a;
+        }
+        sum_sq += (s as f64) * (s as f64);
+    }
+    let rms = (sum_sq / samples.len() as f64).sqrt() as f32;
+    (peak, rms)
 }
 
 fn build_stream<T>(

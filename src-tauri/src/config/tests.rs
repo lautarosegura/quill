@@ -12,7 +12,7 @@ fn default_config_has_expected_values() {
     assert_eq!(c.hotkey, Keybind::default_push_to_talk());
     assert_eq!(c.overlay_position, OverlayPosition::BottomCenter);
     assert_eq!(c.max_duration_secs, 60);
-    assert_eq!(c.min_duration_ms, 250);
+    assert_eq!(c.min_duration_ms, 400);
     assert!(!c.start_on_boot);
     assert!(!c.sounds_enabled);
     assert_eq!(c.vocabulary, "");

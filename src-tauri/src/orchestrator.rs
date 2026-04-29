@@ -354,8 +354,8 @@ impl AppOrchestrator {
         // and will be re-read at insert time via `self.session`.
         let source_app = self.session.lock().await.source_app.clone();
 
-        let wav = match self.recorder.stop_recording() {
-            Ok(bytes) => bytes,
+        let capture = match self.recorder.stop_recording() {
+            Ok(c) => c,
             Err(e) => {
                 self.record_failure("", &format!("audio error: {e}")).await;
                 self.emit_error(format!("audio error: {e}")).await;
@@ -363,6 +363,27 @@ impl AppOrchestrator {
             }
         };
 
+        // Silence gate. Even if the user held the hotkey long enough to
+        // pass `min_duration_ms`, if the actual audio has no voice activity
+        // (peak amplitude below ~-34 dBFS) Whisper will hallucinate output
+        // from the silence (e.g. "thanks for watching", "you", filler ads).
+        // The Silero VAD inside whisper-cli helps but doesn't catch the
+        // case where the WHOLE capture is silent. Skip transcription
+        // entirely.
+        const SILENCE_PEAK_THRESHOLD: f32 = 0.02;
+        if capture.peak < SILENCE_PEAK_THRESHOLD {
+            log::info!(
+                "discarding silent capture: {}ms, peak={:.4}, rms={:.5}",
+                capture.duration_ms,
+                capture.peak,
+                capture.rms
+            );
+            self.emit(TranscriptionState::Idle);
+            self.reset_session().await;
+            return;
+        }
+
+        let wav = capture.wav_bytes;
         let duration_ms = wav_duration_ms(&wav);
 
         // Snapshot the bits of config we need — keeps the RwLock guard short.
