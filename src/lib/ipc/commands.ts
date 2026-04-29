@@ -233,3 +233,41 @@ export async function getUsageStats(): Promise<UsageStats> {
 export async function finishWizard(): Promise<void> {
 	return invoke<void>('finish_wizard');
 }
+
+// LLM polish -----------------------------------------------------------------
+
+import type {
+	LlmKeyTestResult,
+	LlmModelInfo,
+	LlmProvider,
+	PolishPreviewResult
+} from '$lib/types';
+
+export async function getLlmPolishKeyMasked(
+	provider: LlmProvider
+): Promise<string | null> {
+	return invoke<string | null>('get_llm_polish_key_masked', { provider });
+}
+
+export async function setLlmPolishKey(provider: LlmProvider, key: string): Promise<void> {
+	return invoke<void>('set_llm_polish_key', { provider, key });
+}
+
+export async function deleteLlmPolishKey(provider: LlmProvider): Promise<void> {
+	return invoke<void>('delete_llm_polish_key', { provider });
+}
+
+export async function testLlmPolishKey(
+	provider: LlmProvider,
+	key: string
+): Promise<LlmKeyTestResult> {
+	return invoke<LlmKeyTestResult>('test_llm_polish_key', { provider, key });
+}
+
+export async function testLlmPolish(text: string): Promise<PolishPreviewResult> {
+	return invoke<PolishPreviewResult>('test_llm_polish', { text });
+}
+
+export async function listLlmPolishModels(provider: LlmProvider): Promise<LlmModelInfo[]> {
+	return invoke<LlmModelInfo[]>('list_llm_polish_models', { provider });
+}

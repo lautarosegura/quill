@@ -22,12 +22,14 @@
 	import IconClock from '$lib/components/ui/icons/IconClock.svelte';
 	import IconSettings from '$lib/components/ui/icons/IconSettings.svelte';
 	import IconAlert from '$lib/components/ui/icons/IconAlert.svelte';
+	import IconSparkles from '$lib/components/ui/icons/IconSparkles.svelte';
+	import PolishSection from '$lib/components/settings/PolishSection.svelte';
 	import { open as openExternal } from '@tauri-apps/plugin-shell';
 	import { listen, type UnlistenFn } from '@tauri-apps/api/event';
 	import * as api from '$lib/ipc/commands';
 	import { config } from '$lib/stores/config.svelte';
 	import { keybindText } from '$lib/utils/format';
-	import type { Engine, Keybind, Language, OverlayPosition } from '$lib/types';
+	import type { Engine, Keybind, Language, LlmProvider, OverlayPosition } from '$lib/types';
 
 	const APP_VERSION = __APP_VERSION__;
 
@@ -257,6 +259,23 @@
 		return `${boot} · ${sounds}`;
 	});
 
+	// LLM polish summary — closed-accordion one-liner. "Desactivado" when off,
+	// "Provider · model" when on (and either show "clave faltante" if no key).
+	const polishSummary = $derived.by(() => {
+		const cfg = config.value;
+		if (!cfg) return 'Desactivado';
+		if (!cfg.llm_polish_enabled) {
+			// If a key is configured, surface that — they probably toggled off
+			// temporarily and want to know their setup is intact.
+			return 'Desactivado';
+		}
+		const provider = cfg.llm_polish_provider as LlmProvider;
+		const providerLabel = provider === 'groq' ? 'Groq' : provider === 'anthropic' ? 'Anthropic' : 'OpenAI';
+		const model = cfg.llm_polish_models?.[provider];
+		if (!model) return `${providerLabel} · sin modelo`;
+		return `${providerLabel} · ${model}`;
+	});
+
 	const costAlertSummary = $derived.by(() => {
 		if (currentCostAlert == null) return 'Desactivada';
 		return `Avisar al cruzar $${currentCostAlert.toFixed(2)} USD`;
@@ -285,7 +304,17 @@
 			wizard_version: config.value?.wizard_version ?? 1,
 			substitutions: [],
 			presets: config.value?.presets ?? [],
-			active_preset_id: null
+			active_preset_id: null,
+			// Reset LLM polish to default off-state, keeping the user's stored
+			// per-provider model preferences (saved keys live in the keychain
+			// and aren't touched by config reset).
+			llm_polish_enabled: false,
+			llm_polish_provider: 'groq',
+			llm_polish_models: config.value?.llm_polish_models ?? {},
+			llm_polish_system_prompt:
+				config.value?.llm_polish_system_prompt ??
+				'Limpiá esta transcripción dictada por voz: remové muletillas (eh, mm, este, o sea), agregá puntuación si falta, y unificá mayúsculas. NO cambies palabras, NO cambies el sentido, NO traduzcas. Devolvé sólo el texto limpio, sin comentarios ni explicaciones.',
+			llm_polish_max_input_chars: 8000
 		});
 	}
 </script>
@@ -391,6 +420,11 @@
 					</div>
 				{/if}
 			</div>
+		</Accordion>
+
+		<!-- Pulido con IA — opt-in LLM cleanup pass after vocab substitution -->
+		<Accordion title="Pulido con IA" summary={polishSummary} icon={IconSparkles}>
+			<PolishSection />
 		</Accordion>
 
 		<!-- Modelo local -->

@@ -1,5 +1,8 @@
 export type Language = 'es' | 'en';
 export type Engine = 'local' | 'groq';
+/** Cloud LLM providers used by the optional post-transcription polish stage.
+ *  Each one has its own keychain slot and its own preferred model. */
+export type LlmProvider = 'groq' | 'anthropic' | 'openai';
 export type OverlayPosition =
 	| 'bottom-center'
 	| 'bottom-left'
@@ -48,6 +51,40 @@ export interface Config {
 	substitutions: Substitution[];
 	presets: PromptPreset[];
 	active_preset_id: string | null;
+	/** Master toggle. Off by default — opt-in. */
+	llm_polish_enabled: boolean;
+	/** Active provider used when polish runs. Each provider has its own
+	 *  keychain key and its own model preference. */
+	llm_polish_provider: LlmProvider;
+	/** Per-provider chosen model id. Allows the user to switch providers
+	 *  without losing each one's preferred model. */
+	llm_polish_models: Partial<Record<LlmProvider, string>>;
+	/** User-editable system prompt sent to the LLM. */
+	llm_polish_system_prompt: string;
+	/** Safety cap; texts longer than this skip the polish call. */
+	llm_polish_max_input_chars: number;
+}
+
+export interface LlmModelInfo {
+	provider: LlmProvider;
+	id: string;
+	display_name: string;
+	blurb: string;
+	recommended: boolean;
+}
+
+export interface LlmKeyTestResult {
+	valid: boolean;
+	message: string;
+}
+
+export interface PolishPreviewResult {
+	original: string;
+	polished: string;
+	latency_ms: number;
+	model: string;
+	input_tokens: number | null;
+	output_tokens: number | null;
 }
 
 export interface SerializableError {
