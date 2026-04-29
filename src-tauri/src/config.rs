@@ -158,7 +158,7 @@ impl Default for Config {
             mic_device: None,
             overlay_position: OverlayPosition::BottomCenter,
             max_duration_secs: 60,
-            min_duration_ms: 250,
+            min_duration_ms: 400,
             start_on_boot: false,
             sounds_enabled: false,
             vocabulary: String::new(),
